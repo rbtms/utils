@@ -44,7 +44,7 @@
 ###   - Alvaro Fernandez (nishinishi9999 at gmail.com)
 ###
 ### Thanks to:
-###   - Micah Elliot for colortrans.py (https://gist.github.com/MicahElliott/719710), modified and renamed as hextoterm.py
+###   - Micah Elliot for colortrans.py (https://gist.github.com/MicahElliott/719710), modified and renamed as hextoxterm.py
 ###
 
 from PIL        import Image;
