@@ -1,4 +1,4 @@
-### approximate
+### Approximate hex colors to xterm colors
 import sys;
 import re;
 
@@ -306,5 +306,3 @@ def approximate(rgb):
     ### Convert the result to hex again in order to look it up in CLUT
     result = ''.join([ ('%02.x' % i) for i in result ]);
     return check_match(result);
-
-#print(approximate(sys.argv[1]));
