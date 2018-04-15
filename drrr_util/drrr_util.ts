@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    DrrrUtil
-// @version      0.1
+// @version      0.1.0
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
@@ -36,6 +36,13 @@ interface NotificationOptions {
     **/
     let ROOM :Room;
     
+    /**
+    * Constants
+    **/
+    const THEME_URL = Object.freeze({
+        greyscale: 'http://www.google.com'
+    });
+    
     
     /**
     * Namespaces
@@ -45,6 +52,7 @@ interface NotificationOptions {
         export const is_autoban    = true;
         export const is_notify     = true;
         export const is_talk_info  = true;
+        export const theme = 'default'; // greyscale
         
         export const notify_triggers = [''];
         
@@ -71,7 +79,7 @@ interface NotificationOptions {
         talks :{ [propName :string] :Talk };
         users :{ [propName :string] :User };
 
-        //this.style :any;
+        themes :any;
         
         flags :{
             [propName :string] :boolean;
@@ -84,6 +92,10 @@ interface NotificationOptions {
             this.users = {};
             
             this.flags = { HAS_LOADED: false };
+            this.themes = {
+                'default'  : '',
+                'greyscale': ''
+            };
         }
         
         // Hook outcoming requests
@@ -174,8 +186,15 @@ interface NotificationOptions {
         }
 
         // Inject a CSS JSON into the page
-        inject_css(css :any) :void {
-            // Unimplemented
+        inject_css(url :string) :void {
+            const style = document.createElement('STYLE');
+            style.href  = url;
+            
+            $('head').append(style);
+        }
+        
+        set_theme(theme :string) {
+            inject_css( THEME_URL[theme] );
         }
 
         // Convert epoch timestamps to locale time
