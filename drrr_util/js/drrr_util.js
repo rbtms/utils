@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    DrrrUtil
