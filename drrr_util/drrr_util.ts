@@ -6,7 +6,6 @@
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
 // @license      GPL-3.0
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.1/jquery.js
 // @grant        none
 // ==/UserScript==
 
@@ -29,9 +28,7 @@ interface NotificationOptions {
 }
 */
 
-
-
-(function(XHR_proto, console, Notification) {
+module DrrrUtil {
     'use strict';
     
     /**
@@ -99,9 +96,9 @@ interface NotificationOptions {
         
         // Hook outcoming requests
         public hook_send(callback :(body :any) => any) :void {
-            const _send = XHR_proto.send;
+            const _send = XMLHttpRequest.prototype.send;
     
-            XHR_proto.send = function(body :any) {
+            XMLHttpRequest.prototype.send = function(body :any) {
                 const _body = callback(body);
     
                 _send.call(this, _body);
@@ -524,4 +521,4 @@ interface NotificationOptions {
     
     
     main();
-})(XMLHttpRequest.prototype, console, Notification);
+}
