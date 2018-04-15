@@ -38,7 +38,7 @@ interface NotificationOptions {
     const CONFIG = Object.freeze({
         is_hover_data: true,
         is_autoban: true,
-        is_notify: true,
+        is_notify: false,
         is_talk_info: true,
         theme: 'default',
         notify_triggers: [''],
@@ -56,7 +56,7 @@ interface NotificationOptions {
         }
     });
     const THEME_URL = Object.freeze({
-        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/master/drrr_util/css/greyscale.css'
+        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     /**
     * Classes
@@ -285,6 +285,8 @@ interface NotificationOptions {
         append_hover_data() {
             const icon_el = $(this.el.children()[0]);
             /*
+            Unimplemented
+            
             let tooltip = $( document.createElement('DIV') )
                 .addClass('talk-tooltip')
                 .text(this.uid);
@@ -313,6 +315,9 @@ interface NotificationOptions {
         }
         is_registered() {
             return ROOM.users[this.id] !== undefined;
+        }
+        ignore() {
+            // Unimplemented
         }
         kick() {
             // Unimplemented
@@ -383,8 +388,8 @@ interface NotificationOptions {
         ROOM.hook_send(on_send);
         ROOM.hook_response(on_response);
         //setTimeout( () => ROOM.send_message('test'), 2000 );
-        setTimeout(() => ROOM.set_theme('greyscale'), 2000);
-        //ROOM.inject_css();
+        if (CONFIG.theme !== 'default')
+            ROOM.set_theme(CONFIG.theme);
         console.log('LOAD END');
     }
     main();

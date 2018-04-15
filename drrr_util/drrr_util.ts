@@ -45,7 +45,7 @@ interface NotificationOptions {
     const CONFIG = Object.freeze({
         is_hover_data : true,
         is_autoban    : true,
-        is_notify     : true,
+        is_notify     : false,
         is_talk_info  : true,
         theme         : 'default',
         
@@ -66,7 +66,7 @@ interface NotificationOptions {
     });
     
     const THEME_URL :{ [propName :string] :string } = Object.freeze({
-        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/master/drrr_util/css/greyscale.css'
+        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     
     
@@ -515,8 +515,9 @@ interface NotificationOptions {
         ROOM.hook_response(on_response);
         
         //setTimeout( () => ROOM.send_message('test'), 2000 );
-        setTimeout( () => ROOM.set_theme('greyscale'), 2000 );
-        //ROOM.inject_css();
+        
+        if(CONFIG.theme !== 'default')
+            ROOM.set_theme(CONFIG.theme);
 
         console.log('LOAD END');
     }
