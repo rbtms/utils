@@ -20,6 +20,7 @@
   "homepage": "https://github.com/nishinishi9999/utils#readme",
   "dependencies": {},
   "devDependencies": {
+    "@types/jquery": "^3.3.1",
     "tslint": "^5.9.1",
     "typescript": "^2.8.1"
   }

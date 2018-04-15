@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    DrrrUtil
-// @version      0.1.0
+// @version      0.1.5
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
 // @license      GPL-3.0
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.1/jquery.js
 // @grant        none
 // ==/UserScript==
 
@@ -17,6 +18,7 @@
 * - Remove users when they leave or overwrite ROOM.users on each request
 * - Put a limit to notifications
 * - Notifications appearing on the top right of the screen sometimes?
+* - Remove spaces on notifications
 *
 **/
 
@@ -28,7 +30,8 @@ interface NotificationOptions {
 */
 
 
-(function($, XHR_proto, _Notification) {
+
+(function(XHR_proto, console, Notification) {
     'use strict';
     
     /**
@@ -39,24 +42,16 @@ interface NotificationOptions {
     /**
     * Constants
     **/
-    const THEME_URL = Object.freeze({
-        greyscale: 'http://www.google.com'
-    });
-    
-    
-    /**
-    * Namespaces
-    **/
-    namespace Config {
-        export const is_hover_data = true;
-        export const is_autoban    = true;
-        export const is_notify     = true;
-        export const is_talk_info  = true;
-        export const theme = 'default'; // greyscale
+    const CONFIG = Object.freeze({
+        is_hover_data : true,
+        is_autoban    : true,
+        is_notify     : true,
+        is_talk_info  : true,
+        theme         : 'default',
         
-        export const notify_triggers = [''];
+        notify_triggers: [''],
         
-        export const autoban = {
+        autoban: {
             kick: {
                 id   : ['1'],
                 names: ['getkicked'],
@@ -67,23 +62,27 @@ interface NotificationOptions {
                 names: ['getbanned'],
                 msg  : ['banme']
             }
-        };
-    }
+        }
+    });
+    
+    const THEME_URL :{ [propName :string] :string } = Object.freeze({
+        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/master/drrr_util/css/greyscale.css'
+    });
     
     
     /**
     * Classes
     **/
     class Room {
-        host  :string;
-        talks :{ [propName :string] :Talk };
-        users :{ [propName :string] :User };
+        public host  :string;
+        public talks :{ [propName :string] :Talk };
+        public users :{ [propName :string] :User };
 
-        themes :any;
+        public themes :any;
         
-        flags :{
+        private flags :{
             [propName :string] :boolean;
-        }
+        };
         
         
         constructor() {
@@ -99,7 +98,7 @@ interface NotificationOptions {
         }
         
         // Hook outcoming requests
-        hook_send(callback :(body :any) => any) :void {
+        public hook_send(callback :(body :any) => any) :void {
             const _send = XHR_proto.send;
     
             XHR_proto.send = function(body :any) {
@@ -110,38 +109,42 @@ interface NotificationOptions {
         }
 
         // Hook completed requests
-        hook_response(callback :(xhr_room :any) => void) :void {
+        public hook_response(callback :(xhr_room :any) => void) :void {
             $.ajaxSetup({
-                'complete': (xhr :any, status :any) =>
+                'complete': (xhr :any) => //(xhr, status)
                     callback( xhr.responseXML.children[0] ) // <Room>
             });
         }
 
-        own_name() :string {
+        public own_name() :string {
             return $('.profname').text();
         }
         
-        own_id() :string {
-            const name = this.own_name();
-            
-            return this.users[ Object.keys(this.users).find( (id) =>
+        public own_id() :string {
+            const name  = this.own_name();
+            const index = Object.keys(this.users).find( (id) =>
                 this.users[id].name === name
-            ) ].id || 'null';
+            );
+            
+            switch(index !== undefined) {
+                case true : return this.users[index].id;
+                default   : throw Error('User not found.');
+            }
         }
 
         // Set new host (just locally)
-        set_host(_host :any) :void {
-            let _xml = new XMLUtil(_host[0]);
+        public set_host(_host :any) :void {
+            const _xml = new XMLUtil(_host[0]);
             
             this.host = _xml.text();
         }
 
         // Format and get new users
-        get_users(users :any) :User[] {
-            let new_users = [];
+        public get_users(users :any) :User[] {
+            const new_users = [];
             
             for(let i = 0; i < users.length; i++) {
-                let user = new User(users[i]);
+                const user = new User(users[i]);
                 
                 if( !user.is_registered() )
                     new_users.push(user);
@@ -151,29 +154,28 @@ interface NotificationOptions {
         }
         
         // Format and get new talks
-        get_talks(talks :any) :Talk[] {
-            let new_talks = [];
+        public get_talks(talks :any) :Talk[] {
+            const new_talks = [];
 
             for(let i = 0; i < talks.length; i++) {
-                let talk = new Talk(talks[i]);
-
-                if( !talk.is_registered() ) {
+                const talk = new Talk(talks[i]);
+                
+                if( !talk.is_registered() )
                     new_talks.push(talk);
-                }
             }
 
             return new_talks;
         }
         
-        is_flag(flag :string) :boolean {
+        public is_flag(flag :string) :boolean {
             return this.flags[flag];
         }
         
-        set_flag(flag :string) :void {
+        public set_flag(flag :string) :void {
             this.flags[flag] = true;
         }
         
-        send_message(msg :string) :void {
+        public send_message(msg :string) :void {
             const url  = 'http://drrrkari.com/room/?ajax=1';
             const _msg = msg.split(' ').join('+');
             
@@ -186,42 +188,50 @@ interface NotificationOptions {
         }
 
         // Inject a CSS JSON into the page
-        inject_css(url :string) :void {
-            const style = document.createElement('STYLE');
-            style.href  = url;
+        public inject_css(url :string) :void {
+            const style = $( document.createElement('LINK') )
+                .attr('rel', 'stylesheet')
+                .attr('type', 'text/css')
+                .attr('href', url);
             
             $('head').append(style);
         }
         
-        set_theme(theme :string) {
-            inject_css( THEME_URL[theme] );
+        public set_theme(theme :string) :void {
+            this.inject_css( THEME_URL[theme] );
         }
 
         // Convert epoch timestamps to locale time
-        epoch_to_time(time :number) :string {
-            return (new Date( time*1000 ))
+        public epoch_to_time(time :number) :string {
+            const s = 1000;
+            
+            return (new Date( time*s ))
                 .toLocaleTimeString();
         }
 
         // Send a notification (untested on chrome)
-        send_notification(title :string, options :NotificationOptions) :void {
-            if(_Notification.permission === 'granted') {
-                new _Notification(title, options);
-            }
-            else if (Notification.permission === "default") {
-                _Notification.requestPermission( (permission) => {
-                    if (permission === "granted")
-                        new _Notification(title, options);
-                });
-            }
-            else {
-                console.error('Can\'t send notification: ' + _Notification.permission);
+        public send_notification(title :string, options :any) :void {
+            switch(Notification.permission) {
+                case 'granted': {
+                    new Notification(title, options);
+                    
+                    break;
+                }
+                case 'default': {
+                    Notification.requestPermission( (permission) => {
+                        if (permission === 'granted')
+                            new Notification(title, options);
+                    });
+                    
+                    break;
+                }
+                default: throw Error(`Can't send notification: ${Notification.permission}`);
             }
         }
     
-        autoban(talks :Talk[], users :User[]) :void {
-            let kick_list = Config.autoban.kick;
-            let ban_list  = Config.autoban.ban;
+        public autoban(talks :Talk[], users :User[]) :void {
+            const kick_list = CONFIG.autoban.kick;
+            const ban_list  = CONFIG.autoban.ban;
             
             talks.forEach( (talk) => {
                 // By message
@@ -250,22 +260,22 @@ interface NotificationOptions {
     }
     
     class XMLUtil {
-        xml :any;
+        private xml :any;
         
         constructor(xml :any) {
             this.xml = xml;
         }
         
         // Get the text content of a XML node
-        text() :string {
+        public text() :string {
             return this.xml.textContent;
         }
 
         // Get the text content of a XML's child node
-        child_text(t_nodeName :string) :string {
+        public child_text(t_nodeName :string) :string {
             for(let i = 0; i < this.xml.children.length; i++) {
                 if(this.xml.children[i].nodeName === t_nodeName) {
-                    let _xml = new XMLUtil(this.xml.children[i]);
+                    const _xml = new XMLUtil(this.xml.children[i]);
                     
                     return _xml.text();
                 }
@@ -275,8 +285,8 @@ interface NotificationOptions {
         }
     
         // Filter XML children by nodeName
-        filter_children(t_nodeName :string) :any[] {
-            let filtered = [];
+        public filter_children(t_nodeName :string) :any[] {
+            const filtered = [];
         
             for(let i = 0; i < this.xml.children.length; i++) {
                 if(this.xml.children[i].nodeName === t_nodeName) {
@@ -289,18 +299,18 @@ interface NotificationOptions {
     }
     
     class Talk {
-        id      :string;
-        type    :string;
-        uid     :string;
-        encip   :string;
-        name    :string;
-        message :string;
-        icon    :string;
-        time    :number;
-        el      :any;
+        public id      :string;
+        public type    :string;
+        public uid     :string;
+        public encip   :string;
+        public name    :string;
+        public message :string;
+        public icon    :string;
+        public time    :number;
+        private el     :any;
         
         constructor(xml :any) {
-            let _xml = new XMLUtil(xml);
+            const _xml = new XMLUtil(xml);
             
             this.id      = _xml.child_text('id');
             this.type    = _xml.child_text('type');
@@ -313,47 +323,48 @@ interface NotificationOptions {
             this.el      = $('#' + _xml.child_text('id'));
         }
         
-        has_trigger() :boolean {
-            return Config.notify_triggers.includes( this.message );
+        public has_trigger() :boolean {
+            return CONFIG.notify_triggers.includes( this.message );
         }
         
         // IO
-        has_own_name() :boolean {
+        public has_own_name() :boolean {
             return !!this.message.match( ROOM.own_name() );
         }
         
         // IO
-        is_mine() :boolean {
+        public is_mine() :boolean {
             return this.name === ROOM.own_name();
         }
         
         // IO
-        is_registered() :boolean {
+        public is_registered() :boolean {
             return ROOM.talks[this.id] !== undefined;
         }
 
         // IO
         // Search for a match for notify()
-        try_notify() :void {
+        public try_notify() :void {
            if( this.has_trigger() )
                this.notify();
         }
         
         // IO
-        notify() :void {
+        public notify() :void {
             const icon_url = 'http://drrrkari.com/css/icon_girl.png'; // Fixed ATM
             const title    = this.name;
             
-            let options = {
+            const options = {
                 icon: icon_url,
                 body: this.message
-            }
+            };
             
             ROOM.send_notification(title, options);
         }
 
         // IO
-        print_info() :void {
+        public print_info() :void {
+            console.log();
             console.log(this.message);
             console.log('ID',   this.id);
             console.log('UID',  this.uid);
@@ -362,10 +373,12 @@ interface NotificationOptions {
         }
         
         // IO
-        append_hover_data() :void {
-            let icon_el = $(this.el.children()[0]);
+        public append_hover_data() :void {
+            const icon_el = $(this.el.children()[0]);
             
             /*
+            Unimplemented
+            
             let tooltip = $( document.createElement('DIV') )
                 .addClass('talk-tooltip')
                 .text(this.uid);
@@ -381,20 +394,20 @@ interface NotificationOptions {
         }
         
         // IO
-        register() :void {
+        public register() :void {
             ROOM.talks[this.id] = this;
         }
     }
     
     class User {
-        name   :string;
-        id     :string;
-        icon   :string;
-        trip   :string;
-        update :number;
+        public name   :string;
+        public id     :string;
+        public icon   :string;
+        public trip   :string;
+        public update :number;
         
         constructor(xml :any) {
-            let _xml = new XMLUtil(xml);
+            const _xml = new XMLUtil(xml);
             
             this.name   = _xml.child_text('name');
             this.id     = _xml.child_text('id');
@@ -403,20 +416,24 @@ interface NotificationOptions {
             this.update = parseFloat( _xml.child_text('update') );
         }
         
-        is_registered() :boolean {
+        public is_registered() :boolean {
             return ROOM.users[ this.id ] !== undefined;
         }
         
-        kick() {
+        public ignore() {
             // Unimplemented
         }
         
-        ban() {
+        public kick() {
+            // Unimplemented
+        }
+        
+        public ban() {
             // Unimplemented
         }
         
         // Unsafe!
-        register() {
+        public register() {
             ROOM.users[this.id] = this;
         }
     }
@@ -427,7 +444,7 @@ interface NotificationOptions {
     **/
     
     // Triggered before send
-    function on_send(body :string) :string | null {
+    function on_send(body :string | null) :string | null {
         switch(body === null) {
             case true: return null;
             default: {
@@ -442,13 +459,13 @@ interface NotificationOptions {
     function on_response(xml_room :any) :void {
         //console.log('RESPONSE', xml_room);
         //console.log(ROOM);
-        let xml = new XMLUtil(xml_room);
+        const xml = new XMLUtil(xml_room);
         
         // Register new entries
         ROOM.set_host( xml.filter_children('host')  );
         
-        let new_users = ROOM.get_users( xml.filter_children('users') );
-        let new_talks = ROOM.get_talks( xml.filter_children('talks') );
+        const new_users = ROOM.get_users( xml.filter_children('users') );
+        const new_talks = ROOM.get_talks( xml.filter_children('talks') );
         
         new_talks.forEach( (talk) => talk.register() );
         new_users.forEach( (user) => user.register() );
@@ -457,14 +474,8 @@ interface NotificationOptions {
         // Send to handlers
         if( ROOM.is_flag('HAS_LOADED') ) {
             if(new_talks.length !== 0)　{
-                if(Config.is_autoban)
+                if(CONFIG.is_autoban)
                     ROOM.autoban(new_talks, new_users);
-                
-                if(Config.is_notify)
-                    new_talks.forEach( (talk) => talk.try_notify() );
-                
-                if(Config.is_talk_info)
-                    new_talks.forEach( (talk) => talk.print_info() );
                 
                 handle_talks(new_talks);
             }
@@ -485,7 +496,10 @@ interface NotificationOptions {
         console.log( ROOM.own_id() );
         console.log( talks[0].id );
         
-        if( talks[0].uid != ROOM.own_id() )
+        if(CONFIG.is_talk_info)
+            talks.forEach( (talk) => talk.print_info() );
+        
+        if( CONFIG.is_notify && talks[0].uid !== ROOM.own_id() )
             talks[0].notify();
     }
     
@@ -501,6 +515,7 @@ interface NotificationOptions {
         ROOM.hook_response(on_response);
         
         //setTimeout( () => ROOM.send_message('test'), 2000 );
+        setTimeout( () => ROOM.set_theme('greyscale'), 2000 );
         //ROOM.inject_css();
 
         console.log('LOAD END');
@@ -508,4 +523,4 @@ interface NotificationOptions {
     
     
     main();
-})(jQuery, XMLHttpRequest.prototype, Notification);
+})(XMLHttpRequest.prototype, console, Notification);
