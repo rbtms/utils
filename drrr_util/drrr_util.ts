@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         DrrrUtil.js
-// @namespace    http://tampermonkey.net/
+// @namespace    DrrrUtil
 // @version      0.1
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
+// @license      GPL-3.0
 // @grant        none
 // ==/UserScript==
 
