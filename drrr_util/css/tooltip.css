@@ -1,7 +1,3 @@
-dt:hover > .tooltip {
-    display: flex;
-}
-
 .tooltip {
     display: none;
     position: absolute;
