@@ -1,4 +1,3 @@
-"use strict";
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    http://tampermonkey.net/
