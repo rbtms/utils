@@ -1,3 +1,4 @@
+"use strict"
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    http://tampermonkey.net/
@@ -7,7 +8,6 @@
 // @match        http://drrrkari.com/room/
 // @grant        none
 // ==/UserScript==
-
 /**
 * TODO
 *
