@@ -62,8 +62,9 @@ module DrrrUtil {
         }
     });
     
-    const THEME_URL :{ [propName :string] :string } = Object.freeze({
-        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
+    const CSS_URL :{ [propName :string] :string } = Object.freeze({
+        tooltip   : 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css',
+        greyscale : 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     
     
@@ -195,7 +196,7 @@ module DrrrUtil {
         }
         
         public set_theme(theme :string) :void {
-            this.inject_css( THEME_URL[theme] );
+            this.inject_css( CSS_URL[theme] );
         }
 
         // Convert epoch timestamps to locale time
@@ -496,7 +497,7 @@ module DrrrUtil {
         if(CONFIG.is_talk_info)
             talks.forEach( (talk) => talk.print_info() );
         
-        if( CONFIG.is_notify && talks[0].uid !== ROOM.own_id() )
+        if( CONFIG.is_notify && talks[0].uid !== ROOM.own_id() && !!talks[0].message.match( ROOM.own_name() ) )
             talks[0].notify();
     }
     
@@ -515,6 +516,8 @@ module DrrrUtil {
         
         if(CONFIG.theme !== 'default')
             ROOM.set_theme(CONFIG.theme);
+        
+        ROOM.set_theme('tooltip');
 
         console.log('LOAD END');
     }

@@ -55,7 +55,8 @@ var DrrrUtil;
             }
         }
     });
-    const THEME_URL = Object.freeze({
+    const CSS_URL = Object.freeze({
+        tooltip: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css',
         greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     /**
@@ -148,7 +149,7 @@ var DrrrUtil;
             $('head').append(style);
         }
         set_theme(theme) {
-            this.inject_css(THEME_URL[theme]);
+            this.inject_css(CSS_URL[theme]);
         }
         // Convert epoch timestamps to locale time
         epoch_to_time(time) {
@@ -376,7 +377,7 @@ var DrrrUtil;
         console.log(talks[0].id);
         if (CONFIG.is_talk_info)
             talks.forEach((talk) => talk.print_info());
-        if (CONFIG.is_notify && talks[0].uid !== ROOM.own_id())
+        if (CONFIG.is_notify && talks[0].uid !== ROOM.own_id() && !!talks[0].message.match(ROOM.own_name()))
             talks[0].notify();
     }
     // Handle new users
@@ -390,6 +391,7 @@ var DrrrUtil;
         //setTimeout( () => ROOM.send_message('test'), 2000 );
         if (CONFIG.theme !== 'default')
             ROOM.set_theme(CONFIG.theme);
+        ROOM.set_theme('tooltip');
         console.log('LOAD END');
     }
     main();
