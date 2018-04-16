@@ -56,7 +56,7 @@ var DrrrUtil;
         }
     });
     const CSS_URL = Object.freeze({
-        tooltip: 'https://cdn.rawgit.com/nishinishi9999/utils/cc55ec0e/drrr_util/css/tooltip.css',
+        tooltip: 'https://cdn.rawgit.com/nishinishi9999/utils/d5c65a15/drrr_util/css/tooltip.css',
         greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     /**
@@ -285,17 +285,31 @@ var DrrrUtil;
             console.log('TIME', ROOM.epoch_to_time(this.time));
             console.log();
         }
+        tooltip_header(text) {
+            return $(document.createElement('DIV'))
+                .addClass('talk_tooltip_header')
+                .append($(document.createElement('SPAN'))
+                .addClass('talk_tooltip_text')
+                .text(text));
+        }
+        tooltip_btn(text) {
+            return $(document.createElement('BUTTON'))
+                .addClass('talk_tooltip_btn')
+                .text(text);
+        }
         // IO
         append_hover_data() {
             const icon_el = $(this.el.children()[0]);
             const tooltip = $(document.createElement('DIV'))
-                .addClass('tooltip')
-                .append($(document.createElement('DIV'))
-                .addClass('tooltip_data')
-                .append($(document.createElement('SPAN')).addClass('tooltip_text').text('投稿時間<br>10:20<br><br>'), $(document.createElement('SPAN')).addClass('tooltip_text').text('UID<br>15b021240f')), $(document.createElement('DIV'))
-                .addClass('tooltip_btn_div')
-                .append($(document.createElement('BUTTON')).addClass('tooltip_btn').text('無視'), $(document.createElement('BUTTON')).addClass('tooltip_btn').text('キック'), $(document.createElement('BUTTON')).addClass('tooltip_btn').text('バン')));
-            icon_el.on('hover', () => tooltip.css('display', tooltip.css('display') === 'flex' ? 'none' : 'flex'));
+                .addClass('talk_tooltip')
+                .append(this.tooltip_header('ユーザーメニュ'), $(document.createElement('DIV'))
+                .addClass('talk_tooltip_btn_div')
+                .append(this.tooltip_btn('名前: 豆乳'), this.tooltip_btn('投稿時間: 10:20'), this.tooltip_btn('UID: 15b021240f'), this.tooltip_btn('無視'), this.tooltip_btn('キック'), this.tooltip_btn('バン')));
+            /*
+            icon_el.on('hover', () =>
+                tooltip.css('display', tooltip.css('display') === 'flex' ? 'none' : 'flex' )
+            );
+            */
             icon_el.append(tooltip);
         }
         // IO

@@ -63,7 +63,7 @@ module DrrrUtil {
     });
     
     const CSS_URL :{ [propName :string] :string } = Object.freeze({
-        tooltip   : 'https://cdn.rawgit.com/nishinishi9999/utils/cc55ec0e/drrr_util/css/tooltip.css',
+        tooltip   : 'https://cdn.rawgit.com/nishinishi9999/utils/d5c65a15/drrr_util/css/tooltip.css',
         greyscale : 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     
@@ -363,7 +363,7 @@ module DrrrUtil {
             
             ROOM.send_notification(title, options);
         }
-
+        
         // IO
         public print_info() :void {
             console.log();
@@ -374,32 +374,48 @@ module DrrrUtil {
             console.log();
         }
         
+        private tooltip_header(text :string) :any {
+            return $( document.createElement('DIV') )
+                .addClass('talk_tooltip_header')
+                .append(
+                    $( document.createElement('SPAN') )
+                        .addClass('talk_tooltip_text')
+                        .text(text)
+                );
+        }
+        
+        private tooltip_btn(text :string) :any {
+            return $( document.createElement('BUTTON') )
+                .addClass('talk_tooltip_btn')
+                .text(text);
+        }
+        
         // IO
         public append_hover_data() :void {
             const icon_el = $(this.el.children()[0]);
             
             const tooltip = $( document.createElement('DIV') )
-                .addClass('tooltip')
+                .addClass('talk_tooltip')
                 .append(
-                    $( document.createElement('DIV') )
-                        .addClass('tooltip_data')
-                        .append(
-                            $( document.createElement('SPAN') ).addClass('tooltip_text').text('投稿時間<br>10:20<br><br>'),
-                            $( document.createElement('SPAN') ).addClass('tooltip_text').text('UID<br>15b021240f')
-                        ),
+                    this.tooltip_header('ユーザーメニュ'),
                         
                     $( document.createElement('DIV') )
-                        .addClass('tooltip_btn_div')
+                        .addClass('talk_tooltip_btn_div')
                         .append(
-                            $( document.createElement('BUTTON') ).addClass('tooltip_btn').text('無視'),
-                            $( document.createElement('BUTTON') ).addClass('tooltip_btn').text('キック'),
-                            $( document.createElement('BUTTON') ).addClass('tooltip_btn').text('バン')
+                            this.tooltip_btn('名前: 豆乳'),
+                            this.tooltip_btn('投稿時間: 10:20'),
+                            this.tooltip_btn('UID: 15b021240f'),
+                            this.tooltip_btn('無視'),
+                            this.tooltip_btn('キック'),
+                            this.tooltip_btn('バン')
                         )
                 )
             
+            /*
             icon_el.on('hover', () =>
                 tooltip.css('display', tooltip.css('display') === 'flex' ? 'none' : 'flex' )
             );
+            */
             icon_el.append(tooltip);
         }
         
