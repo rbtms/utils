@@ -63,7 +63,7 @@ module DrrrUtil {
     });
     
     const CSS_URL :{ [propName :string] :string } = Object.freeze({
-        tooltip   : 'https://cdn.rawgit.com/nishinishi9999/utils/d5c65a15/drrr_util/css/tooltip.css',
+        tooltip   : 'https://cdn.rawgit.com/nishinishi9999/utils/6ba38f5a/drrr_util/css/tooltip.css',
         greyscale : 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     

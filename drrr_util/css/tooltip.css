@@ -4,21 +4,21 @@ dt:hover > .talk_tooltip {
 .talk_tooltip {
     display: none;
     position: absolute;
-    z-index: 1;
+    z-index: 100000;
     
     text-align: center;
     
     border-radius: 3px 3px 3px 3px;
     
     width: 140px;
-    min-height: 220px;
+    height: 220px;
     
     margin: auto;
-    right: 100px;
-    top: 0px;
-    bottom: 0px;
+    left: -150px;
+
+    margin-top: -140px;
     
-    background-color: yellow;
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .talk_tooltip:before {
@@ -43,7 +43,9 @@ dt:hover > .talk_tooltip {
     
     width: 100%;
     
-    padding-top: 8px;
+    color: black;
+    
+    padding-top: 11px;
 }
 
 .talk_tooltip_text {
@@ -73,7 +75,7 @@ dt:hover > .talk_tooltip {
     position: absolute;
     display: block;
     
-    background-color: black;
+    background-color: rgba(0, 0, 0, 0);
     border-radius: 0px 0px 3px 3px;
     
     align-self: flex-end;
