@@ -2,10 +2,11 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.1.6
+// @version      0.2.0
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
+// @require      https://codepen.io/anon/pen/OZPwPy.js
 // @license      GPL-3.0
 // @grant        none
 // ==/UserScript==
@@ -19,7 +20,8 @@
 * - Remove spaces on notifications
 * - Get each character image
 * - Disable the function that copies the name to the comment field on click
-* - Shorten user menu name
+* - Set number of visible messages
+* - on_send doesn't change the bubble element text
 *
 **/
 var DrrrUtil;
@@ -36,6 +38,7 @@ var DrrrUtil;
         is_notify: true,
         is_talk_info: false,
         is_update_unread: true,
+        is_modify_send: false,
         theme: 'default',
         notify_triggers: ['notifyme'],
         autoban: {
@@ -68,6 +71,7 @@ var DrrrUtil;
             this.users = {};
             this.unread = 0;
             this.flags = { HAS_LOADED: false };
+            this._chat = _Chat();
         }
         // Hook outcoming requests
         hook_send(callback) {
@@ -135,7 +139,7 @@ var DrrrUtil;
             this.flags[flag] = true;
         }
         is_tab_hidden() {
-            return (document.hidden || document['webkitHidden'] || document['msHidden']);
+            return (document.hidden || !!document['webkitHidden'] || document['msHidden']);
         }
         update_title(n) {
             const room = this.room_name();
@@ -186,6 +190,10 @@ var DrrrUtil;
         send_message(msg) {
             const _msg = msg.split(' ').join('+');
             this.post({ message: _msg });
+            this._chat.writeSelfMessage(_msg);
+        }
+        change_user_limit(n) {
+            this.post({ room_limit: n });
         }
         // Inject a link element with the given url
         inject_css(url) {
@@ -233,23 +241,31 @@ var DrrrUtil;
             const { is_notify, is_autoban } = CONFIG;
             const hr = $($('#setting_pannel').children()[9]);
             const hr_el = document.createElement('HR');
-            const autoban_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_autoban').text('自動キック'), $(document.createElement('INPUT')).attr('type', 'checkbox').attr('id', 'is_autoban')
-                .css('margin-left', '10px')
-                .attr('checked', is_autoban)
+            const autoban_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_autoban').text('自動キック'), $(document.createElement('INPUT')).css('margin-left', '10px')
+                .attr({
+                type: 'checkbox',
+                id: 'is_autoban',
+                checked: is_autoban
+            })
                 .on('click', (e) => {
                 const target = e.target;
                 console.log(target.checked);
             }), $(document.createElement('BUTTON')).text('設定')
-                .css('margin-left', '10px')
-                .css('margin-down', '5px')
-                .width(40)
+                .css({
+                'margin-left': '10px',
+                'margin-down': '5px',
+                'width': '40px'
+            })
                 .on('click', (e) => {
                 console.log(e);
             }));
-            const notify_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_notify').text('通知'), $(document.createElement('INPUT')).attr('type', 'checkbox').attr('id', 'is_notify')
-                .attr('checked', is_notify)
-                .css('margin-left', '10px')
-                .on('click', (e) => {
+            const notify_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_notify').text('通知'), $(document.createElement('INPUT')).css('margin-left', '10px')
+                .attr({
+                type: 'checkbox',
+                id: 'is_notify',
+                checked: is_notify
+            })
+                .on('mousedown', (e) => {
                 const target = e.target;
                 console.log(target.checked);
             }), $(document.createElement('BUTTON')).text('設定')
@@ -517,7 +533,23 @@ var DrrrUtil;
             case true: return null;
             default: {
                 console.log('SEND', body);
-                return body;
+                switch (CONFIG.is_modify_send) {
+                    case true: {
+                        const parts = body.split('&').map((pairs) => pairs.split('='));
+                        const msg_pair = parts.find((arr) => arr[0] === 'message');
+                        switch (msg_pair === undefined) {
+                            case true: return body;
+                            default: {
+                                // Modify msg
+                                let msg = decodeURI(msg_pair[1]).trim();
+                                msg = 'abcd';
+                                msg_pair[1] = encodeURI(msg + '\r\n');
+                                return parts.map((pair) => pair.join('=')).join('&');
+                            }
+                        }
+                    }
+                    default: return body;
+                }
             }
         }
     }
@@ -617,8 +649,7 @@ var DrrrUtil;
         ROOM.append_config();
         // Unread update
         ROOM.update_title(0);
-        document.onfocus = () => { document.title = ROOM.room_name(); };
-        //setTimeout( () => ROOM.send_message('test'), 2000 );
+        document.onfocus = ROOM.reset_unread;
         console.log('LOAD END');
     }
     main();

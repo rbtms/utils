@@ -7,7 +7,8 @@
 * - Remove spaces on notifications
 * - Get each character image
 * - Disable the function that copies the name to the comment field on click
-* - Shorten user menu name
+* - Set number of visible messages
+* - on_send doesn't change the bubble element text
 *
 **/
 declare module DrrrUtil {

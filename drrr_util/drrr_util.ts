@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.1.6
+// @version      0.2.0
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
+// @require      https://codepen.io/anon/pen/OZPwPy.js
 // @license      GPL-3.0
 // @grant        none
 // ==/UserScript==
@@ -20,7 +21,8 @@
 * - Remove spaces on notifications
 * - Get each character image
 * - Disable the function that copies the name to the comment field on click
-* - Shorten user menu name
+* - Set number of visible messages
+* - on_send doesn't change the bubble element text
 *
 **/
 
@@ -48,6 +50,7 @@ module DrrrUtil {
         is_notify        : true,       // Whether to send notifications
         is_talk_info     : false,      // Whether to log talk info
         is_update_unread : true,       // Whether to update the title on unread messages
+        is_modify_send   : false,
         theme            : 'default',  // Default theme
         
         notify_triggers: ['notifyme'],
@@ -89,6 +92,16 @@ module DrrrUtil {
             [propName :string] :boolean;
         };
         
+        private _chat :{
+            submitMessage    : () => void,
+            submitPMessage   : () => void,
+            writeMessage     : () => void,
+            writePMessage    : () => void,
+            writeSelfMessage : (str :string) => void,
+            logout           : () => void,
+            startPrivate     : () => void
+        };
+        
         
         constructor() {
             this.host   = '';
@@ -97,6 +110,8 @@ module DrrrUtil {
             this.unread = 0;
             
             this.flags = { HAS_LOADED: false };
+            
+            this._chat = _Chat();
         }
         
         // Hook outcoming requests
@@ -186,7 +201,7 @@ module DrrrUtil {
         }
         
         public is_tab_hidden() :boolean {
-            return (document.hidden || document['webkitHidden'] || document['msHidden']);
+            return (document.hidden || !!document['webkitHidden'] || document['msHidden']);
         }
         
         public update_title(n :number) :void {
@@ -252,6 +267,12 @@ module DrrrUtil {
             const _msg = msg.split(' ').join('+');
             
             this.post({ message: _msg });
+            
+            this._chat.writeSelfMessage(_msg);
+        }
+        
+        public change_user_limit(n :number | string) :void {
+            this.post({ room_limit: n });
         }
 
         // Inject a link element with the given url
@@ -311,11 +332,15 @@ module DrrrUtil {
             const hr = $( $('#setting_pannel').children()[9] );
             
             const hr_el = document.createElement('HR');
+            
             const autoban_el = $(document.createElement('DIV')).append(
                 $(document.createElement('LABEL')).attr('for', 'is_autoban').text('自動キック'),
-                $(document.createElement('INPUT')).attr('type', 'checkbox').attr('id', 'is_autoban')
-                    .css('margin-left', '10px')
-                    .attr('checked', is_autoban)
+                $(document.createElement('INPUT')).css('margin-left', '10px')
+                    .attr({
+                        type: 'checkbox',
+                        id: 'is_autoban',
+                        checked: is_autoban
+                    })
                     .on('click', (e :Event) => {
                         const target = <HTMLInputElement>e.target;
                         
@@ -323,19 +348,25 @@ module DrrrUtil {
                     }),
                 
                 $(document.createElement('BUTTON')).text('設定')
-                    .css('margin-left', '10px')
-                    .css('margin-down', '5px')
-                    .width(40)
+                    .css({
+                        'margin-left': '10px',
+                        'margin-down': '5px',
+                        'width': '40px'
+                    })
                     .on('click', (e) => {
                         console.log(e);
                     })
             );
+            
             const notify_el = $(document.createElement('DIV')).append(
                 $(document.createElement('LABEL')).attr('for', 'is_notify').text('通知'),
-                $(document.createElement('INPUT')).attr('type', 'checkbox').attr('id', 'is_notify')
-                    .attr('checked', is_notify)
-                    .css('margin-left', '10px')
-                    .on('click', (e :Event) => {
+                $(document.createElement('INPUT')).css('margin-left', '10px')
+                    .attr({
+                        type    : 'checkbox',
+                        id      : 'is_notify',
+                        checked : is_notify
+                    })
+                    .on('mousedown', (e :Event) => {
                         const target = <HTMLInputElement>e.target;
                         
                         console.log(target.checked);
@@ -345,6 +376,7 @@ module DrrrUtil {
                     .css('margin-left', '10px')
                     .width(40)
                 );
+            
             //const theme_el = document.createElement('DIV');
             
             
@@ -706,7 +738,26 @@ module DrrrUtil {
             default: {
                 console.log('SEND', body);
 
-                return body;
+                switch(CONFIG.is_modify_send) {
+                    case true: {
+                        const parts    = body.split('&').map( (pairs) => pairs.split('=') );
+                        const msg_pair = parts.find( (arr) => arr[0] === 'message' );
+                        
+                        switch(msg_pair === undefined) {
+                            case true: return body;
+                            default: {
+                                // Modify msg
+                                let msg = decodeURI(msg_pair[1]).trim();
+                                msg = 'abcd';
+                                
+                                
+                                msg_pair[1] = encodeURI(msg + '\r\n');
+                                return parts.map( (pair) => pair.join('=') ).join('&');
+                            }
+                        }
+                    }
+                    default: return body;
+                }
             }
         }
     }
@@ -827,10 +878,8 @@ module DrrrUtil {
         
         // Unread update
         ROOM.update_title(0);
-        document.onfocus = () => { document.title = ROOM.room_name() };
+        document.onfocus = ROOM.reset_unread;
         
-        //setTimeout( () => ROOM.send_message('test'), 2000 );
-
         console.log('LOAD END');
     }
     
