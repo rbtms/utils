@@ -1,11 +1,13 @@
 /**
 * TODO
 *
-* - User update is not updated each request
-* - Remove users when they leave or overwrite ROOM.users on each request
+* - User update is not updated each request5
 * - Put a limit to notifications
-* - Notifications appearing on the top right of the screen sometimes?
+* - Limit notifications to appear on the bottom right part of the screen?
 * - Remove spaces on notifications
+* - Get each character image
+* - Disable the function that copies the name to the comment field on click
+* - Shorten user menu name
 *
 **/
 declare module DrrrUtil {
