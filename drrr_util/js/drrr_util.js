@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.1.5
+// @version      0.1.6
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999
 // @match        http://drrrkari.com/room/
