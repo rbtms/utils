@@ -13,7 +13,7 @@
 /**
 * TODO
 *
-* - User update is not updated each request5
+* - User update is not updated each request
 * - Put a limit to notifications
 * - Limit notifications to appear on the bottom right part of the screen?
 * - Remove spaces on notifications
