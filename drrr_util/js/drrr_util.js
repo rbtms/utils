@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.0
+// @version      0.3.1
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -87,7 +87,7 @@ var DrrrUtil;
             this.set_value('is_modify_send', false);
             this.set_value('theme', 'default');
             this.set_value('notify_triggers', ['notifyme']);
-            this.set_value('is_autoban', {
+            this.set_value('autoban', {
                 kick: {
                     msg: ['kickme'],
                     name: ['getkicked'],
