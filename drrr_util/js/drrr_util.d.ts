@@ -12,6 +12,8 @@
 * - Save a list of ips and their respective id?
 * - Add a configuration icon
 * - Configure theme select events
+* - Focus on the comment field after icon click
+* - Don't do autoban if you are not the admin
 *
 **/
 declare module DrrrUtil {

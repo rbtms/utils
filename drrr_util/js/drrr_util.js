@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.1
+// @version      0.3.2
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -31,6 +31,8 @@
 * - Save a list of ips and their respective id?
 * - Add a configuration icon
 * - Configure theme select events
+* - Focus on the comment field after icon click
+* - Don't do autoban if you are not the admin
 *
 **/
 var DrrrUtil;
@@ -62,6 +64,7 @@ var DrrrUtil;
             this.is_talk_info = this.get_value('is_talk_info');
             this.is_update_unread = this.get_value('is_update_unread');
             this.is_modify_send = this.get_value('is_modify_send');
+            this.is_avoid_disconnection = this.get_value('is_avoid_disconnection');
             this.theme = this.get_value('theme');
             this.notify_triggers = this.get_value('notify_triggers');
             this.autoban = this.get_value('autoban');
@@ -85,11 +88,12 @@ var DrrrUtil;
             this.set_value('is_talk_info', true);
             this.set_value('is_update_unread', true);
             this.set_value('is_modify_send', false);
+            this.set_value('is_avoid_disconnection', false);
             this.set_value('theme', 'default');
-            this.set_value('notify_triggers', ['notifyme']);
+            this.set_value('notify_triggers', ['notifyme', '半角コンマで分別', 'こういう風に']);
             this.set_value('autoban', {
                 kick: {
-                    msg: ['kickme'],
+                    msg: ['kickme', 'dontkickme', 'pleasedont'],
                     name: ['getkicked'],
                     ip: ['abcdefgh']
                 },
@@ -107,6 +111,7 @@ var DrrrUtil;
             this.set_value('is_talk_info', this.is_talk_info);
             this.set_value('is_update_unread', this.is_update_unread);
             this.set_value('is_modify_send', this.is_modify_send);
+            this.set_value('is_avoid_disconnection', this.is_avoid_disconnection);
             this.set_value('theme', this.theme);
             this.set_value('notify_triggers', this.notify_triggers);
             this.set_value('is_autoban', this.is_autoban);
@@ -239,7 +244,11 @@ var DrrrUtil;
         send_message(msg) {
             const _msg = msg.split(' ').join('+');
             this.post({ message: _msg });
-            this._chat.writeSelfMessage(_msg);
+            this._chat.writeSelfMessage(_msg); // Draw message
+        }
+        send_pm(msg, id) {
+            const _msg = msg.split(' ').join('+');
+            this.post({ id: id, message: _msg });
         }
         change_user_limit(n) {
             this.post({ room_limit: n });
@@ -270,27 +279,10 @@ var DrrrUtil;
         // Send a notification (untested on chrome)
         send_notification(options) {
             GM_notification(options);
-            /**
-            const permission = Notification['permission'];
-            
-            switch(permission) {
-                case 'granted': {
-                    new Notification(title, options);
-                    
-                    break;
-                }
-                case 'default': {
-                    Notification.requestPermission( (_permission) => {
-                        if (_permission === 'granted') {
-                            new Notification(title, options);
-                        }
-                    });
-                    
-                    break;
-                }
-                default: throw Error(`Can't send notification: ${permission}`);
-            }
-            **/
+        }
+        // Send a private message to oneself every m minutes to stay alive
+        avoid_disconnection(m) {
+            setInterval(() => ROOM.send_pm('test', ROOM.own_id()), m * 60 * 1000);
         }
         config_textarea(label, id, data) {
             return $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', id).text(label), $(document.createElement('INPUT')).attr('id', id).val(data.join(',')).css({
@@ -645,7 +637,10 @@ var DrrrUtil;
                 e.preventDefault();
                 e.stopPropagation();
             })));
-            this.icon_el.on('click', () => ROOM.add_msg_field(' @' + name));
+            this.icon_el.on('click', () => {
+                ROOM.add_msg_field(' @' + name);
+                $('[name=message]').focus();
+            });
             this.icon_el.append(tooltip);
         }
     }
@@ -827,6 +822,10 @@ var DrrrUtil;
         // Hooks
         ROOM.hook_send(on_send);
         ROOM.hook_response(on_response);
+        // Avoid disconnection
+        if (CONFIG.is_avoid_disconnection) {
+            ROOM.avoid_disconnection(10);
+        }
         // CSS
         if (CONFIG.theme !== 'default') {
             ROOM.set_css(CONFIG.theme);
