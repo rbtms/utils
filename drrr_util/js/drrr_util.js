@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.2
+// @version      0.3.5
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -114,7 +114,7 @@ var DrrrUtil;
             this.set_value('is_avoid_disconnection', this.is_avoid_disconnection);
             this.set_value('theme', this.theme);
             this.set_value('notify_triggers', this.notify_triggers);
-            this.set_value('is_autoban', this.is_autoban);
+            this.set_value('autoban', this.autoban);
         }
     }
     class Room {
@@ -295,6 +295,12 @@ var DrrrUtil;
         parse_textarea(line) {
             return line.split(/\s*,\s*/);
         }
+        toggle_config_menu() {
+            $('.submit input[name=post]').slideToggle(); // Post button
+            $('#message textarea').slideToggle(); // Message field
+            $('.userprof').slideToggle(); // User picture/name
+            $('#config_menu').slideToggle(); // Configuration div
+        }
         append_config() {
             const { is_notify, is_autoban } = CONFIG;
             const icon_url = 'https://i.imgsafe.org/9f/9f4ad930a2.png';
@@ -304,7 +310,7 @@ var DrrrUtil;
                 'margin-bottom': '10px'
             });
             const config_div = $(document.createElement('DIV'))
-                .attr('id', 'config_div')
+                .attr('id', 'config_menu')
                 .addClass('pannel hide')
                 .append('<br>');
             const notify_div = $(document.createElement('DIV'))
@@ -336,9 +342,7 @@ var DrrrUtil;
                 'margin-down': '5px',
                 'width': '40px'
             })
-                .on('click', () => {
-                autoban_div.slideToggle();
-            }));
+                .on('click', () => autoban_div.slideToggle()));
             const notify_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_notify').text('通知'), $(document.createElement('INPUT')).css('margin-left', '10px')
                 .attr({
                 type: 'checkbox',
@@ -351,12 +355,11 @@ var DrrrUtil;
             })
                 .on('click', () => notify_div.slideToggle()));
             const theme_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'theme_select').text('テーマ'), $(document.createElement('SELECT')).attr('id', 'theme_select').css('margin-left', '10px').append($(document.createElement('OPTION')).text('デフォルト').val('default'), $(document.createElement('OPTION')).text('白黒').val('greyscale'))).css('padding-top', '5px');
-            const save_button = $(document.createElement('BUTTON'))
+            const button_div = $(document.createElement('DIV')).append(
+            // Save configuration
+            $(document.createElement('BUTTON'))
                 .text('保存')
-                .css({
-                'width': '60px',
-                'margin-bottom': '20px'
-            })
+                .css('width', '60px')
                 .on('click', () => {
                 CONFIG.set_data({
                     is_autoban: $('#is_autoban').prop('checked'),
@@ -364,26 +367,34 @@ var DrrrUtil;
                     notify_triggers: this.parse_textarea($('#notify_triggers').val()),
                     autoban: {
                         kick: {
-                            msg: this.parse_textarea($('#kick_msg').val()),
                             name: this.parse_textarea($('#kick_name').val()),
+                            msg: this.parse_textarea($('#kick_msg').val()),
                             ip: this.parse_textarea($('#kick_ip').val())
                         },
                         ban: {
-                            msg: this.parse_textarea($('#ban_msg').val()),
                             name: this.parse_textarea($('#ban_name').val()),
+                            msg: this.parse_textarea($('#ban_msg').val()),
                             ip: this.parse_textarea($('#ban_ip').val())
                         }
                     }
                 });
                 CONFIG.save();
-            });
-            const icon = $(document.createElement('LI')).append($(document.createElement('IMG')).attr('src', icon_url)).on('click', () => {
-                $('.submit input[name=post]').slideToggle(); // Post button
-                $('#message textarea').slideToggle(); // Message field
-                $('.userprof').slideToggle(); // User picture/name
-                config_div.slideToggle(); // Configuration div
-            });
-            config_div.append(autoban_el, autoban_div, notify_el, notify_div, theme_el, hr_el, save_button, '<br>');
+                this.toggle_config_menu();
+            }), 
+            // Restore default configuration
+            $(document.createElement('BUTTON'))
+                .text('元設定に戻す')
+                .css({
+                'width': '110px',
+                'margin-left': '10px'
+            })
+                .on('click', () => {
+                CONFIG.save_default();
+                this.toggle_config_menu();
+                location.reload();
+            }));
+            const icon = $(document.createElement('LI')).append($(document.createElement('IMG')).attr('src', icon_url)).on('click', this.toggle_config_menu);
+            config_div.append(autoban_el, autoban_div, notify_el, notify_div, theme_el, hr_el, button_div, '<br>');
             $('.message_box_inner').append(config_div);
             $('.menu li:eq(3)').after(icon);
         }
