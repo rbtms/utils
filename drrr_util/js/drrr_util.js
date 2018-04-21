@@ -2,58 +2,45 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.2.0
+// @version      0.3.0
 // @description  Multiple utilities for Drrr Chat
-// @author       nishinishi9999
+// @author       nishinishi9999 AKA tounyuu
+// @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
+// @supportURL   https://openuserjs.org/scripts/nishinishi9999/DrrrUtil.js/issues
+// @icon         http://drrrkari.com/css/icon_girl.png
 // @match        http://drrrkari.com/room/
 // @require      https://codepen.io/anon/pen/OZPwPy.js
 // @license      GPL-3.0
-// @grant        none
+// @grant        GM_notification
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_listValues
+// @grant        window.focus
 // ==/UserScript==
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pouchdb/6.4.3/pouchdb.min.js
 /**
 * TODO
 *
 * - User update is not updated each request
-* - Put a limit to notifications
-* - Limit notifications to appear on the bottom right part of the screen?
 * - Remove spaces on notifications
-* - Get each character image
-* - Disable the function that copies the name to the comment field on click
+** - Get each character image
+** - Disable the function that copies the name to the comment field on click
 * - Set number of visible messages
 * - on_send doesn't change the bubble element text
+* - Think about some way of evading automatic disconnection
+* - Hide admin-related buttons from user menu when you are not admin
+* - Save a list of ips and their respective id?
+* - Add a configuration icon
+* - Configure theme select events
 *
 **/
 var DrrrUtil;
 (function (DrrrUtil) {
     'use strict';
-    //console.log(pouchdb);
     /**
     * Global variables
     **/
     let ROOM;
-    const CONFIG = {
-        is_hover_menu: true,
-        is_autoban: true,
-        is_notify: true,
-        is_talk_info: false,
-        is_update_unread: true,
-        is_modify_send: false,
-        theme: 'default',
-        notify_triggers: ['notifyme'],
-        autoban: {
-            kick: {
-                id: ['1'],
-                name: ['getkicked'],
-                msg: ['kickme']
-            },
-            ban: {
-                id: ['1'],
-                name: ['getbanned'],
-                msg: ['banme']
-            }
-        }
-    };
+    let CONFIG;
     /**
     * Constants
     **/
@@ -64,6 +51,67 @@ var DrrrUtil;
     /**
     * Classes
     **/
+    class Config {
+        constructor() {
+            if (this.get_value('is_hover_menu') === undefined) {
+                this.save_default();
+            }
+            this.is_hover_menu = this.get_value('is_hover_menu');
+            this.is_autoban = this.get_value('is_autoban');
+            this.is_notify = this.get_value('is_notify');
+            this.is_talk_info = this.get_value('is_talk_info');
+            this.is_update_unread = this.get_value('is_update_unread');
+            this.is_modify_send = this.get_value('is_modify_send');
+            this.theme = this.get_value('theme');
+            this.notify_triggers = this.get_value('notify_triggers');
+            this.autoban = this.get_value('autoban');
+        }
+        get_value(key) {
+            return GM_getValue(key);
+        }
+        set_value(key, value) {
+            GM_setValue(key, value);
+        }
+        set_data(json) {
+            Object.keys(json).forEach((key) => {
+                this[key] = json[key];
+            });
+            console.log(this);
+        }
+        save_default() {
+            this.set_value('is_hover_menu', true);
+            this.set_value('is_autoban', true);
+            this.set_value('is_notify', true);
+            this.set_value('is_talk_info', true);
+            this.set_value('is_update_unread', true);
+            this.set_value('is_modify_send', false);
+            this.set_value('theme', 'default');
+            this.set_value('notify_triggers', ['notifyme']);
+            this.set_value('is_autoban', {
+                kick: {
+                    msg: ['kickme'],
+                    name: ['getkicked'],
+                    ip: ['abcdefgh']
+                },
+                ban: {
+                    msg: ['kickme'],
+                    name: ['getkicked'],
+                    ip: ['abcdefgh']
+                }
+            });
+        }
+        save() {
+            this.set_value('is_hover_menu', this.is_hover_menu);
+            this.set_value('is_autoban', this.is_autoban);
+            this.set_value('is_notify', this.is_notify);
+            this.set_value('is_talk_info', this.is_talk_info);
+            this.set_value('is_update_unread', this.is_update_unread);
+            this.set_value('is_modify_send', this.is_modify_send);
+            this.set_value('theme', this.theme);
+            this.set_value('notify_triggers', this.notify_triggers);
+            this.set_value('is_autoban', this.is_autoban);
+        }
+    }
     class Room {
         constructor() {
             this.host = '';
@@ -139,7 +187,8 @@ var DrrrUtil;
             this.flags[flag] = true;
         }
         is_tab_hidden() {
-            return (document.hidden || !!document['webkitHidden'] || document['msHidden']);
+            return document.hidden;
+            //return (document.hidden || !!document.webkitHidden || document.msHidden);
         }
         update_title(n) {
             const room = this.room_name();
@@ -207,10 +256,10 @@ var DrrrUtil;
         set_css(theme) {
             this.inject_css(CSS_URL[theme]);
         }
-        // Set comment field
-        set_cmt_field(str) {
-            // Unimplemented
-            str; ////
+        // Set message field
+        add_msg_field(str) {
+            const textbox = $('[name=message]');
+            textbox.val(textbox.val() + str);
         }
         // Convert epoch timestamps to locale time
         epoch_to_time(time) {
@@ -219,96 +268,173 @@ var DrrrUtil;
                 .toLocaleTimeString();
         }
         // Send a notification (untested on chrome)
-        send_notification(title, options) {
+        send_notification(options) {
+            GM_notification(options);
+            /**
             const permission = Notification['permission'];
-            switch (permission) {
+            
+            switch(permission) {
                 case 'granted': {
                     new Notification(title, options);
+                    
                     break;
                 }
                 case 'default': {
-                    Notification.requestPermission((_permission) => {
+                    Notification.requestPermission( (_permission) => {
                         if (_permission === 'granted') {
                             new Notification(title, options);
                         }
                     });
+                    
                     break;
                 }
                 default: throw Error(`Can't send notification: ${permission}`);
             }
+            **/
+        }
+        config_textarea(label, id, data) {
+            return $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', id).text(label), $(document.createElement('INPUT')).attr('id', id).val(data.join(',')).css({
+                'width': '400px',
+                'height': '20px',
+                'padding-left': '5px',
+                'margin-left': '20px'
+            }));
+        }
+        parse_textarea(line) {
+            return line.split(/\s*,\s*/);
         }
         append_config() {
             const { is_notify, is_autoban } = CONFIG;
-            const hr = $($('#setting_pannel').children()[9]);
-            const hr_el = document.createElement('HR');
+            const icon_url = 'https://i.imgsafe.org/9f/9f4ad930a2.png';
+            const hr_el = $(document.createElement('HR'))
+                .css({
+                'margin-top': '10px',
+                'margin-bottom': '10px'
+            });
+            const config_div = $(document.createElement('DIV'))
+                .attr('id', 'config_div')
+                .addClass('pannel hide')
+                .append('<br>');
+            const notify_div = $(document.createElement('DIV'))
+                .attr('id', 'notify_trigger_div')
+                .addClass('pannel hide')
+                .css({
+                'margin-left': '50px',
+                'margin-top': '8px',
+                'margin-bottom': '5px'
+            })
+                .append(this.config_textarea('通知トリガー', 'notify_triggers', CONFIG.notify_triggers));
+            const autoban_div = $(document.createElement('DIV'))
+                .attr('id', 'autoban_div')
+                .addClass('pannel hide')
+                .css({
+                'margin-left': '50px',
+                'margin-top': '8px',
+                'margin-bottom': '5px'
+            })
+                .append($(document.createElement('SPAN')).text('キック'), this.config_textarea('名前', 'kick_name', CONFIG.autoban.kick.name), this.config_textarea('単語', 'kick_msg', CONFIG.autoban.kick.msg), this.config_textarea('ＩＰ', 'kick_ip', CONFIG.autoban.kick.ip), $(document.createElement('SPAN')).text('BAN'), this.config_textarea('名前', 'ban_name', CONFIG.autoban.ban.name), this.config_textarea('単語', 'ban_msg', CONFIG.autoban.ban.msg), this.config_textarea('ＩＰ', 'ban_ip', CONFIG.autoban.ban.ip));
             const autoban_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_autoban').text('自動キック'), $(document.createElement('INPUT')).css('margin-left', '10px')
                 .attr({
                 type: 'checkbox',
                 id: 'is_autoban',
                 checked: is_autoban
-            })
-                .on('click', (e) => {
-                const target = e.target;
-                console.log(target.checked);
             }), $(document.createElement('BUTTON')).text('設定')
                 .css({
                 'margin-left': '10px',
                 'margin-down': '5px',
                 'width': '40px'
             })
-                .on('click', (e) => {
-                console.log(e);
+                .on('click', () => {
+                autoban_div.slideToggle();
             }));
             const notify_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'is_notify').text('通知'), $(document.createElement('INPUT')).css('margin-left', '10px')
                 .attr({
                 type: 'checkbox',
                 id: 'is_notify',
                 checked: is_notify
-            })
-                .on('mousedown', (e) => {
-                const target = e.target;
-                console.log(target.checked);
             }), $(document.createElement('BUTTON')).text('設定')
-                .css('margin-left', '10px')
-                .width(40));
-            //const theme_el = document.createElement('DIV');
-            hr.after(autoban_el, notify_el, hr_el, '<br>');
+                .css({
+                'margin-left': '10px',
+                'width': '40px'
+            })
+                .on('click', () => notify_div.slideToggle()));
+            const theme_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'theme_select').text('テーマ'), $(document.createElement('SELECT')).attr('id', 'theme_select').css('margin-left', '10px').append($(document.createElement('OPTION')).text('デフォルト').val('default'), $(document.createElement('OPTION')).text('白黒').val('greyscale'))).css('padding-top', '5px');
+            const save_button = $(document.createElement('BUTTON'))
+                .text('保存')
+                .css({
+                'width': '60px',
+                'margin-bottom': '20px'
+            })
+                .on('click', () => {
+                CONFIG.set_data({
+                    is_autoban: $('#is_autoban').prop('checked'),
+                    is_notify: $('#is_notify').prop('checked'),
+                    notify_triggers: this.parse_textarea($('#notify_triggers').val()),
+                    autoban: {
+                        kick: {
+                            msg: this.parse_textarea($('#kick_msg').val()),
+                            name: this.parse_textarea($('#kick_name').val()),
+                            ip: this.parse_textarea($('#kick_ip').val())
+                        },
+                        ban: {
+                            msg: this.parse_textarea($('#ban_msg').val()),
+                            name: this.parse_textarea($('#ban_name').val()),
+                            ip: this.parse_textarea($('#ban_ip').val())
+                        }
+                    }
+                });
+                CONFIG.save();
+            });
+            const icon = $(document.createElement('LI')).append($(document.createElement('IMG')).attr('src', icon_url)).on('click', () => {
+                $('.submit input[name=post]').slideToggle(); // Post button
+                $('#message textarea').slideToggle(); // Message field
+                $('.userprof').slideToggle(); // User picture/name
+                config_div.slideToggle(); // Configuration div
+            });
+            config_div.append(autoban_el, autoban_div, notify_el, notify_div, theme_el, hr_el, save_button, '<br>');
+            $('.message_box_inner').append(config_div);
+            $('.menu li:eq(3)').after(icon);
         }
         // Automatically kick or ban a user given the keywords on CONFIG.autoban
         autoban(talks, users) {
             const kick_list = CONFIG.autoban.kick;
             const ban_list = CONFIG.autoban.ban;
             for (const talk of talks) {
-                // By message
-                if (talk.msg_matches(kick_list.msg)) {
+                // By ip
+                if (talk.encip_matches(kick_list.ip)) {
                     this.users[talk.uid].kick();
-                    return true;
+                }
+                else if (talk.msg_matches(ban_list.ip)) {
+                    this.users[talk.uid].ban();
+                }
+                else if (talk.msg_matches(kick_list.msg)) {
+                    this.users[talk.uid].kick();
                 }
                 else if (talk.msg_matches(ban_list.msg)) {
                     this.users[talk.uid].ban();
-                    return true;
                 }
             }
             for (const user of users) {
-                // By uid
-                if (user.id_matches(kick_list.id)) {
+                // By ip
+                if (user.encip_matches(kick_list.ip)) {
                     user.kick();
-                    return true;
+                }
+                else if (user.encip_matches(ban_list.ip)) {
+                    user.ban();
+                }
+                else if (user.id_matches(kick_list.id)) {
+                    user.kick();
                 }
                 else if (user.id_matches(ban_list.id)) {
                     user.ban();
-                    return true;
                 }
                 else if (user.name_matches(kick_list.name)) {
                     user.kick();
-                    return true;
                 }
                 else if (user.name_matches(ban_list.name)) {
                     user.ban();
-                    return true;
                 }
             }
-            return false;
         }
     }
     class XMLUtil {
@@ -370,13 +496,22 @@ var DrrrUtil;
     class Talk {
         constructor(xml) {
             const _xml = new XMLUtil(xml);
+            const icon = _xml.child_text('icon')
+                || 'girl';
+            const uid = _xml.child_text('uid');
+            let encip = _xml.child_text('encip');
+            if (encip === '') {
+                if (ROOM.has_user(uid)) {
+                    encip = ROOM.user(uid).encip;
+                }
+            }
             this.id = _xml.child_text('id');
             this.type = _xml.child_text('type');
-            this.uid = _xml.child_text('uid');
-            this.encip = _xml.child_text('encip');
+            this.uid = uid;
+            this.encip = encip;
             this.name = _xml.child_text('name');
             this.message = _xml.child_text('message');
-            this.icon = _xml.child_text('icon');
+            this.icon = icon;
             this.time = parseInt(_xml.child_text('time'));
             //this.el      = $('#' + _xml.child_text('id'));
             this.icon_el = $($('#' + _xml.child_text('id')).children()[0]);
@@ -413,6 +548,14 @@ var DrrrUtil;
                 return regex.test(msg);
             });
         }
+        // Match the encip against a list of words
+        encip_matches(list) {
+            const encip = this.encip;
+            switch (encip === '') {
+                case true: return false;
+                default: return list.some((_encip) => _encip === encip);
+            }
+        }
         // Search for a match for notify()
         try_notify() {
             if (!this.is_me() && this.has_trigger()) {
@@ -421,13 +564,19 @@ var DrrrUtil;
         }
         // Notify the talk
         notify() {
-            const icon_url = 'http://drrrkari.com/css/icon_girl.png'; // Fixed ATM
+            const icon = this.icon;
             const title = this.name;
+            const msg = this.message;
+            const icon_url = `http://drrrkari.com/css/icon_${icon}.png`;
             const options = {
-                icon: icon_url,
-                body: this.message
+                title: title,
+                image: icon_url,
+                highlight: true,
+                text: msg,
+                timeout: 5000,
+                onclick: window.focus
             };
-            ROOM.send_notification(title, options);
+            ROOM.send_notification(options);
         }
         // Log talk's info
         print_info() {
@@ -454,31 +603,49 @@ var DrrrUtil;
         }
         // Append user menu to the talk icon
         append_hover_menu() {
+            const name = this.name;
+            const time = this.time;
+            const uid = this.uid;
+            const encip = this.encip;
             const tooltip = $(document.createElement('DIV'))
                 .addClass('talk_tooltip')
                 .append(this.tooltip_header('ユーザーメニュ'), $(document.createElement('DIV'))
                 .addClass('talk_tooltip_btn_div')
-                .append(this.tooltip_btn('投稿時間: ' + ROOM.epoch_to_time(this.time)), this.tooltip_btn('UID: ' + this.uid.substr(0, 10)), this.tooltip_btn('内緒モード').on('click', () => {
+                .append(this.tooltip_btn('投稿時間: ' + ROOM.epoch_to_time(time)), this.tooltip_btn('IP: ' + (encip.substr(0, 10) || 'null')).on('click', (e) => {
+                // copy ip to message box
+                ROOM.add_msg_field(this.encip || 'null');
+                e.preventDefault();
+                e.stopPropagation();
+            }), this.tooltip_btn('内緒モード').on('click', (e) => {
                 // Click on the target user
-                $(`#user_list2 > li[name=${this.uid}]`).click();
+                $(`#user_list2 > li[name=${this.uid}]`).trigger('click');
                 // Open private window
-                $('[name=pmbtn]').click();
-            }), this.tooltip_btn('無視').on('click', () => {
-                const user = ROOM.user(this.uid);
+                $('[name=pmbtn]').trigger('click');
+                e.preventDefault();
+                e.stopPropagation();
+            }), this.tooltip_btn('無視').on('click', (e) => {
+                const user = ROOM.user(uid);
                 if (user) {
                     user.ignore();
                 }
-            }), this.tooltip_btn('キック').on('click', () => {
-                const user = ROOM.user(this.uid);
+                e.preventDefault();
+                e.stopPropagation();
+            }), this.tooltip_btn('キック').on('click', (e) => {
+                const user = ROOM.user(uid);
                 if (user) {
                     user.kick();
                 }
-            }), this.tooltip_btn('バン').on('click', () => {
-                const user = ROOM.user(this.uid);
+                e.preventDefault();
+                e.stopPropagation();
+            }), this.tooltip_btn('バン').on('click', (e) => {
+                const user = ROOM.user(uid);
                 if (user) {
                     user.ban();
                 }
+                e.preventDefault();
+                e.stopPropagation();
             })));
+            this.icon_el.on('click', () => ROOM.add_msg_field(' @' + name));
             this.icon_el.append(tooltip);
         }
     }
@@ -488,6 +655,7 @@ var DrrrUtil;
             this.name = _xml.child_text('name');
             this.id = _xml.child_text('id');
             this.icon = _xml.child_text('icon');
+            this.encip = _xml.child_text('encip');
             this.trip = _xml.child_text('trip');
             this.update = parseFloat(_xml.child_text('update'));
         }
@@ -511,6 +679,14 @@ var DrrrUtil;
                 return regex.test(name);
             });
         }
+        // Match the encip against a list of words
+        encip_matches(list) {
+            const encip = this.encip;
+            switch (encip === '') {
+                case true: return false;
+                default: return list.some((_encip) => _encip === encip);
+            }
+        }
         // Hide the talks from that user
         ignore() {
             alert('Unimplemented!');
@@ -525,6 +701,15 @@ var DrrrUtil;
         }
     }
     /**
+    * Functions
+    **/
+    function parse_send(body) {
+        return body.split('&').map((pairs) => pairs.split('='));
+    }
+    function join_send(parts) {
+        return parts.map((pair) => pair.join('=')).join('&');
+    }
+    /**
     * Handlers
     **/
     // Triggered before send
@@ -535,7 +720,7 @@ var DrrrUtil;
                 console.log('SEND', body);
                 switch (CONFIG.is_modify_send) {
                     case true: {
-                        const parts = body.split('&').map((pairs) => pairs.split('='));
+                        const parts = parse_send(body);
                         const msg_pair = parts.find((arr) => arr[0] === 'message');
                         switch (msg_pair === undefined) {
                             case true: return body;
@@ -544,7 +729,7 @@ var DrrrUtil;
                                 let msg = decodeURI(msg_pair[1]).trim();
                                 msg = 'abcd';
                                 msg_pair[1] = encodeURI(msg + '\r\n');
-                                return parts.map((pair) => pair.join('=')).join('&');
+                                return join_send(parts);
                             }
                         }
                     }
@@ -571,7 +756,7 @@ var DrrrUtil;
                 ROOM.autoban(talks, users);
             }
             if (users.length !== 0) {
-                users.forEach((user) => handle_users(user));
+                users.forEach(handle_users);
             }
             if (talks.length !== 0) {
                 talks.forEach((talk) => {
@@ -601,6 +786,7 @@ var DrrrUtil;
         }
         else {
             // Initialization
+            console.log('INITIALIZATION', talks, users);
             talks.forEach((talk) => {
                 if (CONFIG.is_hover_menu) {
                     talk.append_hover_menu();
@@ -636,6 +822,7 @@ var DrrrUtil;
         //user.kick();
     }
     function main() {
+        CONFIG = new Config();
         ROOM = new Room();
         // Hooks
         ROOM.hook_send(on_send);
