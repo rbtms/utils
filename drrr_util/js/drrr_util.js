@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.7
+// @version      0.3.8
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -358,7 +358,7 @@ var DrrrUtil;
                 'width': '40px'
             })
                 .on('click', () => notify_div.slideToggle()));
-            const theme_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'theme_select').text('テーマ'), $(document.createElement('SELECT')).attr('id', 'theme_select').css('margin-left', '10px').append($(document.createElement('OPTION')).text('デフォルト').val('default'), $(document.createElement('OPTION')).text('白黒').val('greyscale'))).css('padding-top', '5px');
+            const theme_el = $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', 'theme_select').text('テーマ'), $(document.createElement('SELECT')).attr('id', 'theme_select').css('margin-left', '10px').append($(document.createElement('OPTION')).text('デフォルト').val('default'), $(document.createElement('OPTION')).text('白黒').val('greyscale').on('click', () => ROOM.set_css('greyscale')))).css('padding-top', '5px');
             const button_div = $(document.createElement('DIV')).append(
             // Save configuration
             $(document.createElement('BUTTON'))
@@ -607,6 +607,7 @@ var DrrrUtil;
                 .addClass('talk_tooltip_header')
                 .append($(document.createElement('SPAN'))
                 .addClass('talk_tooltip_text')
+                .addClass('noselect')
                 .text(text));
         }
         // append_hover_menu() helper

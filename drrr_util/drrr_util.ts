@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.7
+// @version      0.3.8
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -519,7 +519,9 @@ module DrrrUtil {
                 $( document.createElement('LABEL')  ).attr('for', 'theme_select').text('テーマ'),
                 $( document.createElement('SELECT') ).attr('id', 'theme_select').css('margin-left', '10px').append(
                     $( document.createElement('OPTION') ).text('デフォルト').val('default'),
-                    $( document.createElement('OPTION') ).text('白黒').val('greyscale')
+                    $( document.createElement('OPTION') ).text('白黒').val('greyscale').on('click', () =>
+                        ROOM.set_css('greyscale')
+                    )
                 )
             ).css('padding-top', '5px');
             
@@ -848,6 +850,7 @@ module DrrrUtil {
                 .append(
                     $( document.createElement('SPAN') )
                         .addClass('talk_tooltip_text')
+                        .addClass('noselect')
                         .text(text)
                 );
         }
