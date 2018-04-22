@@ -47,7 +47,7 @@ var DrrrUtil;
     * Constants
     **/
     const CSS_URL = Object.freeze({
-        tooltip: 'https://cdn.rawgit.com/nishinishi9999/utils/7c0c1437/drrr_util/css/tooltip.css',
+        tooltip: 'https://cdn.rawgit.com/nishinishi9999/utils/2bc98a0c/drrr_util/css/tooltip.css',
         greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     /**
