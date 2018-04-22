@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.8
+// @version      0.3.9
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -23,17 +23,13 @@
 *
 * - User update is not updated each request
 * - Remove spaces on notifications
-** - Get each character image
 ** - Disable the function that copies the name to the comment field on click
 * - Set number of visible messages
 * - on_send doesn't change the bubble element text
 * - Think about some way of evading automatic disconnection
 * - Hide admin-related buttons from user menu when you are not admin
 * - Save a list of ips and their respective id?
-* - Add a configuration icon
 * - Configure theme select events
-* - Focus on the comment field after icon click
-* - Don't do autoban if you are not the admin
 *
 **/
 
@@ -116,8 +112,6 @@ module DrrrUtil {
             Object.keys(json).forEach( (key) => {
                 this[key] = json[key];
             });
-            
-            console.log(this);
         }
         
         public save_default() :void {
@@ -306,6 +300,10 @@ module DrrrUtil {
             return $('.profname').text();
         }
         
+        public im_host() :boolean {
+            return this.own_id() === this.host;
+        }
+        
         // Own id
         public own_id() :string {
             const name  = this.own_name();
@@ -387,6 +385,15 @@ module DrrrUtil {
         // Set message field
         public add_msg_field(str :string) :void {
             this.msg_field.val( this.get_msg_field() + str );
+        }
+        
+        public focus_msg_field() {
+            const textarea = $('#message textarea')[0];
+            const pos      = 1000; // Arbitrary number
+            
+            textarea.focus();
+            textarea.selectionStart = pos;
+            textarea.selectionEnd   = pos;
         }
 
         // Convert epoch timestamps to locale time
@@ -580,66 +587,6 @@ module DrrrUtil {
             $('.message_box_inner').append(config_div);
             $('.menu li:eq(3)').after(icon);
         }
-        
-        // Automatically kick or ban a user given the keywords on CONFIG.autoban
-        public autoban_talk(talk :Talk) :boolean {
-            const kick_list = CONFIG.autoban.kick;
-            const ban_list  = CONFIG.autoban.ban;
-            
-            // By ip
-            if( talk.encip_matches(kick_list.ip) ) {
-                console.log('KICK MATCH');
-                this.users[ talk.uid ].kick();
-            }
-            else if( talk.msg_matches(ban_list.ip) ) {
-                console.log('BAN MATCH');
-                this.users[ talk.uid ].ban();
-            }
-            
-            // By message
-            else if( talk.msg_matches(kick_list.msg) ) {
-                console.log('KICK MATCH');
-                this.users[ talk.uid ].kick();
-            }
-            else if( talk.msg_matches(ban_list.msg) ) {
-                console.log('BAN MATCH');
-                this.users[ talk.uid ].ban();
-            }
-            
-            else {
-                return false;
-            }
-            
-            return true;
-        }
-        
-        // Automatically kick or ban a user given the keywords on CONFIG.autoban
-        public autoban_user(user :User) :boolean {
-            const kick_list = CONFIG.autoban.kick;
-            const ban_list  = CONFIG.autoban.ban;
-            
-            // By ip
-            if( user.encip_matches(kick_list.ip) ) {
-                user.kick();
-            }
-            else if( user.encip_matches(ban_list.ip) ) {
-                user.ban();
-            }
-            
-            // By name
-            else if( user.name_matches(kick_list.name) ) {
-                user.kick();
-            }
-            else if( user.name_matches(ban_list.name) ) {
-                user.ban();
-            }
-            
-            else {
-                return false;
-            }
-            
-            return true;
-        }
     }
     
     class XMLUtil {
@@ -738,9 +685,8 @@ module DrrrUtil {
             
             let encip = _xml.child_text('encip');
             if(encip === '') {
-                if( ROOM.has_user(uid) ) {
-                    encip = ROOM.user(uid).encip;
-                }
+                const _user = ROOM.user(uid);
+                if(_user) { encip = _user.encip; }
             }
             
             this.id      = _xml.child_text('id');
@@ -882,6 +828,7 @@ module DrrrUtil {
                             this.tooltip_btn('IP: ' + (encip.substr(0, 10) || 'null')).on('click', (e :Event) => {
                                 // copy ip to message box
                                 ROOM.add_msg_field(this.encip || 'null');
+                                ROOM.focus_msg_field();
                                 
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -899,7 +846,6 @@ module DrrrUtil {
                             }),
                             this.tooltip_btn('無視').on('click', (e :Event) => {
                                 const user = ROOM.user(uid);
-                                
                                 if(user) { user.ignore(); }
                                 
                                 e.preventDefault();
@@ -907,7 +853,6 @@ module DrrrUtil {
                             }),
                             this.tooltip_btn('キック').on('click', (e :Event) => {
                                 const user = ROOM.user(uid);
-                                
                                 if(user) { user.kick(); }
 
                                 e.preventDefault();
@@ -915,7 +860,6 @@ module DrrrUtil {
                             }),
                             this.tooltip_btn('バン').on ('click', (e :Event) => {
                                 const user = ROOM.user(uid);
-                                
                                 if(user) { user.ban(); }
 
                                 e.preventDefault();
@@ -930,9 +874,47 @@ module DrrrUtil {
                     ? `@${name} `
                     : ` @${name}`
                 );
-                $('[name=message]').focus();
+                
+                ROOM.focus_msg_field();
             });
             this.icon_el.append(tooltip);
+        }
+        
+        public try_autoban() :boolean {
+            if( ROOM.im_host() ) {
+                const kick_list = CONFIG.autoban.kick;
+                const ban_list  = CONFIG.autoban.ban;
+            
+                // By ip
+                if( this.encip_matches(kick_list.ip) ) {
+                    const user = ROOM.user(this.uid);
+                    if(user) { user.kick(); }
+                }
+                else if( this.msg_matches(ban_list.ip) ) {
+                    const user = ROOM.user(this.uid);
+                    if(user) { user.ban(); }
+                }
+                
+                // By message
+                else if( this.msg_matches(kick_list.msg) ) {
+                    const user = ROOM.user(this.uid);
+                    if(user) { user.kick(); }
+                }
+                else if( this.msg_matches(ban_list.msg) ) {
+                    const user = ROOM.user(this.uid);
+                    if(user) { user.ban(); }
+                }
+                
+                // Didn't succeed
+                else {
+                    return false;
+                }
+                
+                return true;
+            }
+            else {
+                return false;
+            }
         }
     }
     
@@ -1006,6 +988,39 @@ module DrrrUtil {
         public ban() {
             ROOM.post({ ban_user: this.id, block: 1 });
         }
+
+        // Automatically kick or ban a user given the keywords on CONFIG.autoban
+        public try_autoban() :boolean {
+            if( ROOM.im_host() ) {
+                const kick_list = CONFIG.autoban.kick;
+                const ban_list  = CONFIG.autoban.ban;
+                
+                // By ip
+                if( this.encip_matches(kick_list.ip) ) {
+                    this.kick();
+                }
+                else if( this.encip_matches(ban_list.ip) ) {
+                    this.ban();
+                }
+                
+                // By name
+                else if( this.name_matches(kick_list.name) ) {
+                    this.kick();
+                }
+                else if( this.name_matches(ban_list.name) ) {
+                    this.ban();
+                }
+                
+                else {
+                    return false;
+                }
+                
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
     }
     
     /**
@@ -1034,7 +1049,7 @@ module DrrrUtil {
                 switch(CONFIG.is_modify_send) {
                     case true: {
                         const parts    = parse_send(<string>body);
-                        const msg_pair = parts.find( (arr) => arr[0] === 'message' );
+                        const msg_pair = <string[]>parts.find( (arr) => arr[0] === 'message' );
                         
                         switch(msg_pair === undefined) {
                             case true: return body;
@@ -1077,7 +1092,7 @@ module DrrrUtil {
             if(users.length !== 0) {
                 users.forEach( (user) => {
                     if(CONFIG.is_autoban) {
-                        ROOM.autoban_user(user);
+                        user.try_autoban();
                     }
                     
                     handle_users(user);
@@ -1094,7 +1109,7 @@ module DrrrUtil {
                         handle_system_msg(talk.message);
                     }
                     else {
-                        if(CONFIG.is_autoban) 　　　{　ROOM.autoban_talk(talk); }
+                        if(CONFIG.is_autoban)    {　talk.try_autoban(); }
                         if(CONFIG.is_hover_menu) { talk.append_hover_menu(); }
                         if(CONFIG.is_talk_info)  { talk.print_info(); }
                         
