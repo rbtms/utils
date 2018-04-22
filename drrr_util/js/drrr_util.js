@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.5
+// @version      0.3.6
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -98,9 +98,9 @@ var DrrrUtil;
                     ip: ['abcdefgh']
                 },
                 ban: {
-                    msg: ['kickme'],
-                    name: ['getkicked'],
-                    ip: ['abcdefgh']
+                    msg: ['banme'],
+                    name: ['getbanned'],
+                    ip: ['hgfedcba']
                 }
             });
         }
@@ -399,45 +399,52 @@ var DrrrUtil;
             $('.menu li:eq(3)').after(icon);
         }
         // Automatically kick or ban a user given the keywords on CONFIG.autoban
-        autoban(talks, users) {
+        autoban_talk(talk) {
             const kick_list = CONFIG.autoban.kick;
             const ban_list = CONFIG.autoban.ban;
-            for (const talk of talks) {
-                // By ip
-                if (talk.encip_matches(kick_list.ip)) {
-                    this.users[talk.uid].kick();
-                }
-                else if (talk.msg_matches(ban_list.ip)) {
-                    this.users[talk.uid].ban();
-                }
-                else if (talk.msg_matches(kick_list.msg)) {
-                    this.users[talk.uid].kick();
-                }
-                else if (talk.msg_matches(ban_list.msg)) {
-                    this.users[talk.uid].ban();
-                }
+            // By ip
+            if (talk.encip_matches(kick_list.ip)) {
+                console.log('KICK MATCH');
+                this.users[talk.uid].kick();
             }
-            for (const user of users) {
-                // By ip
-                if (user.encip_matches(kick_list.ip)) {
-                    user.kick();
-                }
-                else if (user.encip_matches(ban_list.ip)) {
-                    user.ban();
-                }
-                else if (user.id_matches(kick_list.id)) {
-                    user.kick();
-                }
-                else if (user.id_matches(ban_list.id)) {
-                    user.ban();
-                }
-                else if (user.name_matches(kick_list.name)) {
-                    user.kick();
-                }
-                else if (user.name_matches(ban_list.name)) {
-                    user.ban();
-                }
+            else if (talk.msg_matches(ban_list.ip)) {
+                console.log('BAN MATCH');
+                this.users[talk.uid].ban();
             }
+            else if (talk.msg_matches(kick_list.msg)) {
+                console.log('KICK MATCH');
+                this.users[talk.uid].kick();
+            }
+            else if (talk.msg_matches(ban_list.msg)) {
+                console.log('BAN MATCH');
+                this.users[talk.uid].ban();
+            }
+            else {
+                return false;
+            }
+            return true;
+        }
+        // Automatically kick or ban a user given the keywords on CONFIG.autoban
+        autoban_user(user) {
+            const kick_list = CONFIG.autoban.kick;
+            const ban_list = CONFIG.autoban.ban;
+            // By ip
+            if (user.encip_matches(kick_list.ip)) {
+                user.kick();
+            }
+            else if (user.encip_matches(ban_list.ip)) {
+                user.ban();
+            }
+            else if (user.name_matches(kick_list.name)) {
+                user.kick();
+            }
+            else if (user.name_matches(ban_list.name)) {
+                user.ban();
+            }
+            else {
+                return false;
+            }
+            return true;
         }
     }
     class XMLUtil {
@@ -695,7 +702,7 @@ var DrrrUtil;
         }
         // Hide the talks from that user
         ignore() {
-            alert('Unimplemented!');
+            alert('未実装！');
         }
         // Kick the user from the room (owner mode)
         kick() {
@@ -757,12 +764,13 @@ var DrrrUtil;
         talks.forEach((talk) => talk.register());
         // Send to handlers
         if (ROOM.is_flag('HAS_LOADED')) {
-            if (CONFIG.is_autoban) {
-                //console.log('AUTOBAN', users);
-                ROOM.autoban(talks, users);
-            }
             if (users.length !== 0) {
-                users.forEach(handle_users);
+                users.forEach((user) => {
+                    if (CONFIG.is_autoban) {
+                        ROOM.autoban_user(user);
+                    }
+                    handle_users(user);
+                });
             }
             if (talks.length !== 0) {
                 talks.forEach((talk) => {
@@ -773,6 +781,9 @@ var DrrrUtil;
                         handle_system_msg(talk.message);
                     }
                     else {
+                        if (CONFIG.is_autoban) {
+                            ROOM.autoban_talk(talk);
+                        }
                         if (CONFIG.is_hover_menu) {
                             talk.append_hover_menu();
                         }
