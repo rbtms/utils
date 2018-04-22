@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.6
+// @version      0.3.7
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -170,6 +170,8 @@ module DrrrUtil {
             [propName :string] :boolean;
         };
         
+        private msg_field :any;
+        
         private _chat :{
             submitMessage    : () => void,
             submitPMessage   : () => void,
@@ -190,6 +192,8 @@ module DrrrUtil {
             this.flags = { HAS_LOADED: false };
             
             this._chat = _Chat();
+            
+            this.msg_field = $('[name=message]');
         }
         
         // Hook outcoming requests
@@ -375,11 +379,14 @@ module DrrrUtil {
             this.inject_css( CSS_URL[theme] );
         }
         
+        // Get message field
+        public get_msg_field() :string {
+            return this.msg_field.val();
+        }
+
         // Set message field
         public add_msg_field(str :string) :void {
-            const textbox = $('[name=message]');
-            
-            textbox.val( <string>textbox.val() + str );
+            this.msg_field.val( this.get_msg_field() + str );
         }
 
         // Convert epoch timestamps to locale time
@@ -916,7 +923,10 @@ module DrrrUtil {
             
             
             this.icon_el.on( 'click', () => {
-                ROOM.add_msg_field(' @' + name);
+                ROOM.add_msg_field( ROOM.get_msg_field() === ''
+                    ? `@${name} `
+                    : ` @${name}`
+                );
                 $('[name=message]').focus();
             });
             this.icon_el.append(tooltip);
