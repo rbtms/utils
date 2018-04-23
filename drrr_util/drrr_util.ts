@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.9
+// @version      0.3.10
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -22,8 +22,6 @@
 * TODO
 *
 * - User update is not updated each request
-* - Remove spaces on notifications
-** - Disable the function that copies the name to the comment field on click
 * - Set number of visible messages
 * - on_send doesn't change the bubble element text
 * - Think about some way of evading automatic disconnection
@@ -101,16 +99,24 @@ module DrrrUtil {
         }
         
         public get_value(key :string) :any {
-            return GM_getValue(key);
+            const value = GM_getValue(key);
+            
+            switch(value === undefined) {
+                case true : throw Error('Proprety isn\'t stored: ' + key);
+                default   : return value;
+            }
         }
         
         public set_value(key :string, value: any) :void {
             GM_setValue(key, value);
         }
         
-        public set_data(json :{ [propName :string] :any }) :void {
+        public set_data(json :{ [propName :string] :any }) :void | never {
             Object.keys(json).forEach( (key) => {
-                this[key] = json[key];
+                switch(this[key] === undefined) {
+                    case true : throw Error('Non-existent property: ' + key);
+                    default   : this[key] = json[key];
+                }
             });
         }
         
@@ -388,7 +394,7 @@ module DrrrUtil {
         }
         
         public focus_msg_field() {
-            const textarea = $('#message textarea')[0];
+            const textarea = <HTMLTextAreaElement>$('#message textarea')[0];
             const pos      = 1000; // Arbitrary number
             
             textarea.focus();
@@ -411,9 +417,13 @@ module DrrrUtil {
         
         // Send a private message to oneself every m minutes to stay alive
         public avoid_disconnection(m :number) :void {
+            const ms   = 1000;
+            const s    = 60;
+            const time = m * s * ms;
+            
             setInterval( () =>
                 ROOM.send_pm( 'test', ROOM.own_id() )
-            , m*60*1000);
+            , time);
         }
         
         private config_textarea(label :string, id :string, data :string[]) {
@@ -814,6 +824,7 @@ module DrrrUtil {
             const time  = this.time;
             const uid   = this.uid;
             const encip = this.encip;
+            const prop_len = 10;
             
             const tooltip = $( document.createElement('DIV') )
                 .addClass('talk_tooltip')
@@ -825,7 +836,7 @@ module DrrrUtil {
                         .append(
                             this.tooltip_btn('投稿時間: ' + ROOM.epoch_to_time(time)),
                             
-                            this.tooltip_btn('IP: ' + (encip.substr(0, 10) || 'null')).on('click', (e :Event) => {
+                            this.tooltip_btn('IP: ' + (encip.substr(0, prop_len) || 'null')).on('click', (e :Event) => {
                                 // copy ip to message box
                                 ROOM.add_msg_field(this.encip || 'null');
                                 ROOM.focus_msg_field();
@@ -866,7 +877,7 @@ module DrrrUtil {
                                 e.stopPropagation();
                             })
                         )
-                )
+                );
             
             
             this.icon_el.on( 'click', () => {
@@ -890,7 +901,7 @@ module DrrrUtil {
                     const user = ROOM.user(this.uid);
                     if(user) { user.kick(); }
                 }
-                else if( this.msg_matches(ban_list.ip) ) {
+                else if( this.encip_matches(ban_list.ip) ) {
                     const user = ROOM.user(this.uid);
                     if(user) { user.ban(); }
                 }
@@ -945,12 +956,6 @@ module DrrrUtil {
         // Register the user in the room
         public register() {
             ROOM.register_user(this);
-        }
-        
-        public id_matches(list :string[]) :boolean {
-            const own_id = this.id;
-            
-            return list.some( (id) => id === own_id );
         }
         
         // Match user's name against a list of words
@@ -1060,6 +1065,7 @@ module DrrrUtil {
                                 
                                 
                                 msg_pair[1] = encodeURI(msg + '\r\n');
+                                
                                 return join_send(parts);
                             }
                         }
@@ -1081,9 +1087,9 @@ module DrrrUtil {
         ROOM.set_host( xml.get_host() );
         
         const users = xml.new_users();
-        const talks = xml.new_talks();
-        
         users.forEach( (user) => user.register() );
+        
+        const talks = xml.new_talks();
         talks.forEach( (talk) => talk.register() );
         
         
@@ -1139,7 +1145,8 @@ module DrrrUtil {
     
     // Handle system messages
     function handle_system_msg(msg :string) :void {
-        const [name, event] = msg.substr(3).split('さん');
+        const hyphen_end = 3;
+        const [name, event] = msg.substr(hyphen_end).split('さん');
         console.log('SYSTEM', name, event);
         
         switch(event) {
@@ -1181,7 +1188,9 @@ module DrrrUtil {
         
         // Avoid disconnection
         if(CONFIG.is_avoid_disconnection) {
-            ROOM.avoid_disconnection(10);
+            const s = 10;
+            
+            ROOM.avoid_disconnection(s);
         }
         
         // CSS

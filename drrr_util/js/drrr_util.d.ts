@@ -2,8 +2,6 @@
 * TODO
 *
 * - User update is not updated each request
-* - Remove spaces on notifications
-** - Disable the function that copies the name to the comment field on click
 * - Set number of visible messages
 * - on_send doesn't change the bubble element text
 * - Think about some way of evading automatic disconnection

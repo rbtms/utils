@@ -13,6 +13,8 @@
         
         "member-ordering": false,
         
+        "no-angle-bracket-type-assertion": false,
+        
         //"no-any": true,
         
         // Disallow the use of empty interfaces
@@ -43,7 +45,7 @@
             // Reason: Harder to read
             "only-arrow-functions": [true, "allow-declarations"],
         
-            "prefer-for-of": false,
+            "prefer-for-of": true,
             
             // Enforce promise-returning functions to be declarated with async
             // Reason: Makes promises safer

@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name         DrrrUtil.js
 // @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.9
+// @version      0.3.10
 // @description  Multiple utilities for Drrr Chat
 // @author       nishinishi9999 AKA tounyuu
 // @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
@@ -21,8 +21,6 @@
 * TODO
 *
 * - User update is not updated each request
-* - Remove spaces on notifications
-** - Disable the function that copies the name to the comment field on click
 * - Set number of visible messages
 * - on_send doesn't change the bubble element text
 * - Think about some way of evading automatic disconnection
@@ -66,14 +64,21 @@ var DrrrUtil;
             this.autoban = this.get_value('autoban');
         }
         get_value(key) {
-            return GM_getValue(key);
+            const value = GM_getValue(key);
+            switch (value === undefined) {
+                case true: throw Error('Proprety isn\'t stored: ' + key);
+                default: return value;
+            }
         }
         set_value(key, value) {
             GM_setValue(key, value);
         }
         set_data(json) {
             Object.keys(json).forEach((key) => {
-                this[key] = json[key];
+                switch (this[key] === undefined) {
+                    case true: throw Error('Non-existent property: ' + key);
+                    default: this[key] = json[key];
+                }
             });
         }
         save_default() {
@@ -291,7 +296,10 @@ var DrrrUtil;
         }
         // Send a private message to oneself every m minutes to stay alive
         avoid_disconnection(m) {
-            setInterval(() => ROOM.send_pm('test', ROOM.own_id()), m * 60 * 1000);
+            const ms = 1000;
+            const s = 60;
+            const time = m * s * ms;
+            setInterval(() => ROOM.send_pm('test', ROOM.own_id()), time);
         }
         config_textarea(label, id, data) {
             return $(document.createElement('DIV')).append($(document.createElement('LABEL')).attr('for', id).text(label), $(document.createElement('INPUT')).attr('id', id).val(data.join(',')).css({
@@ -580,11 +588,12 @@ var DrrrUtil;
             const time = this.time;
             const uid = this.uid;
             const encip = this.encip;
+            const prop_len = 10;
             const tooltip = $(document.createElement('DIV'))
                 .addClass('talk_tooltip')
                 .append(this.tooltip_header('ユーザーメニュ'), $(document.createElement('DIV'))
                 .addClass('talk_tooltip_btn_div')
-                .append(this.tooltip_btn('投稿時間: ' + ROOM.epoch_to_time(time)), this.tooltip_btn('IP: ' + (encip.substr(0, 10) || 'null')).on('click', (e) => {
+                .append(this.tooltip_btn('投稿時間: ' + ROOM.epoch_to_time(time)), this.tooltip_btn('IP: ' + (encip.substr(0, prop_len) || 'null')).on('click', (e) => {
                 // copy ip to message box
                 ROOM.add_msg_field(this.encip || 'null');
                 ROOM.focus_msg_field();
@@ -638,7 +647,7 @@ var DrrrUtil;
                         user.kick();
                     }
                 }
-                else if (this.msg_matches(ban_list.ip)) {
+                else if (this.encip_matches(ban_list.ip)) {
                     const user = ROOM.user(this.uid);
                     if (user) {
                         user.ban();
@@ -683,10 +692,6 @@ var DrrrUtil;
         // Register the user in the room
         register() {
             ROOM.register_user(this);
-        }
-        id_matches(list) {
-            const own_id = this.id;
-            return list.some((id) => id === own_id);
         }
         // Match user's name against a list of words
         name_matches(list) {
@@ -790,8 +795,8 @@ var DrrrUtil;
         // Register new entries
         ROOM.set_host(xml.get_host());
         const users = xml.new_users();
-        const talks = xml.new_talks();
         users.forEach((user) => user.register());
+        const talks = xml.new_talks();
         talks.forEach((talk) => talk.register());
         // Send to handlers
         if (ROOM.is_flag('HAS_LOADED')) {
@@ -845,7 +850,8 @@ var DrrrUtil;
     }
     // Handle system messages
     function handle_system_msg(msg) {
-        const [name, event] = msg.substr(3).split('さん');
+        const hyphen_end = 3;
+        const [name, event] = msg.substr(hyphen_end).split('さん');
         console.log('SYSTEM', name, event);
         switch (event) {
             case 'が入室しました': break;
@@ -877,7 +883,8 @@ var DrrrUtil;
         ROOM.hook_response(on_response);
         // Avoid disconnection
         if (CONFIG.is_avoid_disconnection) {
-            ROOM.avoid_disconnection(10);
+            const s = 10;
+            ROOM.avoid_disconnection(s);
         }
         // CSS
         if (CONFIG.theme !== 'default') {
