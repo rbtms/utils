@@ -1,16 +1,15 @@
 "use strict";
 // ==UserScript==
 // @name         DrrrUtil.js
-// @namespace    https://github.com/nishinishi9999/utils/tree/master/drrr_util
-// @version      0.3.10
+// @namespace    https://github.com/robotoms/utils/tree/master/drrr_util
+// @version      0.4.0
 // @description  Multiple utilities for Drrr Chat
-// @author       nishinishi9999 AKA tounyuu
-// @homepageURL  https://github.com/nishinishi9999/utils/blob/master/drrr_util
-// @supportURL   https://openuserjs.org/scripts/nishinishi9999/DrrrUtil.js/issues
+// @author       tounyuu
+// @homepageURL  https://github.com/robotoms/utils/blob/master/drrr_util
+// @supportURL   https://openuserjs.org/scripts/robotoms/DrrrUtil.js/issues
 // @icon         http://drrrkari.com/css/icon_girl.png
 // @match        http://drrrkari.com/room/
-// @require      https://codepen.io/anon/pen/OZPwPy.js
-// @license      GPL-3.0
+// @license      GPL-3.0-only
 // @grant        GM_notification
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -41,8 +40,8 @@ var DrrrUtil;
     * Constants
     **/
     const CSS_URL = Object.freeze({
-        tooltip: 'https://cdn.rawgit.com/nishinishi9999/utils/2bc98a0c/drrr_util/css/tooltip.css',
-        greyscale: 'https://cdn.rawgit.com/nishinishi9999/utils/0a863f1b/drrr_util/css/greyscale.css'
+        tooltip: 'https://cdn.rawgit.com/robotoms/utils/2bc98a0c/drrr_util/css/tooltip.css',
+        greyscale: 'https://cdn.rawgit.com/robotoms/utils/0a863f1b/drrr_util/css/greyscale.css'
     });
     /**
     * Classes
@@ -124,7 +123,6 @@ var DrrrUtil;
             this.users = {};
             this.unread = 0;
             this.flags = { HAS_LOADED: false };
-            this._chat = _Chat();
             this.msg_field = $('[name=message]');
         }
         // Hook outcoming requests
@@ -246,13 +244,10 @@ var DrrrUtil;
         }
         // Send a message
         send_message(msg) {
-            const _msg = msg.split(' ').join('+');
-            this.post({ message: _msg });
-            this._chat.writeSelfMessage(_msg); // Draw message
+            this.post({ message: msg });
         }
         send_pm(msg, id) {
-            const _msg = msg.split(' ').join('+');
-            this.post({ id: id, message: _msg });
+            this.post({ id: id, message: msg });
         }
         change_user_limit(n) {
             this.post({ room_limit: n });
@@ -653,6 +648,7 @@ var DrrrUtil;
                         user.ban();
                     }
                 }
+                // By message
                 else if (this.msg_matches(kick_list.msg)) {
                     const user = ROOM.user(this.uid);
                     if (user) {
@@ -665,6 +661,7 @@ var DrrrUtil;
                         user.ban();
                     }
                 }
+                // Didn't succeed
                 else {
                     return false;
                 }
@@ -733,6 +730,7 @@ var DrrrUtil;
                 else if (this.encip_matches(ban_list.ip)) {
                     this.ban();
                 }
+                // By name
                 else if (this.name_matches(kick_list.name)) {
                     this.kick();
                 }
