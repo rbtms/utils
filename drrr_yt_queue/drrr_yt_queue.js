@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Drrr YT queue
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.1
 // @description  Play YT links on drrr with a queue
 // @author       Ms.Roboto
 // @match        https://drrr.com/room/*
@@ -9,6 +9,8 @@
 // @grant        none
 // @license      MIT
 // ==/UserScript==
+
+ENABLE_URL = "https://cors-anywhere.herokuapp.com/corsdemo";
 
 class Queue {
     constructor($) {
@@ -39,7 +41,7 @@ class Queue {
             const name = $('#form-room-music-name')[0].value;
             const url  = $('#form-room-music-url')[0].value;
 
-            if(/youtube/.test(url)) {
+            if(/youtube|youtu\.be/.test(url)) {
                 this.add(url, true);
             }
             else if(url != '') {
@@ -53,10 +55,6 @@ class Queue {
             $('.icon-music').click();
             // Focus on the comment box
             $('[name=message]')[0].focus();
-
-            // Append demo server url at the end
-            $('#music_pannel').append('<a href='+this.ENABLE_URL+' style="font-size: 10px; color: #AAAAAA; text-decoration: none;"'
-                                      + '>Click for CORS server permission (once a day or so)</a>');
 
             // Add input behaviour
             $('#form-room-music-url').on( 'input', (e) => this.inputCallback() );
@@ -106,6 +104,23 @@ class Queue {
     }
 
     add(id, playOnReady=false) {
+        if(/youtu\.be/.test(id)) {
+            const parts = id.split('/');
+            id = 'https://www.youtube.com/watch?v=' + parts[parts.length-1];
+        }
+        console.log(id);
+
+        // Check if the youtube id is already on the queue
+        for(let i = 0; i < this.elemN; i++) {
+            if(this.q[i].yt_id == id) {
+                console.log('Playing url from queue.\n');
+                this.pos = i;
+                this.play();
+                return;
+            }
+        }
+
+        // Else get the id
         const url = this.CORS_URL + this.YT_CONVERTER_URL + "/convert.php?youtubelink=" + id;
         this.showLoading();
 
@@ -118,7 +133,7 @@ class Queue {
             else {
                 console.log(id + " added to queue");
 
-                this.q[this.elemN] = {file: json.file, title: json.alt_title||json.title, duration: json.duration};
+                this.q[this.elemN] = {file: json.file, title: json.alt_title||json.title, duration: json.duration, yt_id: id};
                 this.elemN++;
 
                 if(playOnReady) {
@@ -128,8 +143,12 @@ class Queue {
 
             this.hideLoading();
         })
-        //.error( err => { console.log('error', err); this.hideLoading(); } )
-        //.fail( err => { console.log('fail', err); this.hideLoading(); } );
+        .fail( err => {
+            console.log('fail', err);
+            this.hideLoading();
+
+            alert('Error: Couldnt load video.\nMaybe you didn\'t ask for CORS server access.');
+        });
     }
 
     addName(query, playOnReady=false) {
@@ -243,5 +262,9 @@ class Queue {
         }
     }
 }
+
+// Append demo server url at the end of the music div
+$('#music_pannel').append('<a href='+ENABLE_URL+' style="font-size: 10px; color: #AAAAAA; text-decoration: none;"'
+                          + '>Click for CORS server permission (once a day or so)</a>');
 
 q = new Queue($);
