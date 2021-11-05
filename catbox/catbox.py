@@ -68,7 +68,6 @@ def main():
 
     # Bytes object
     url = uploadFileToSite(path, site) if uploadType == "FILE" else uploadUrl(path)
-    print(url)
 
     # Copy to clipboard
     subprocess.run("clip.exe", input=bytes(url, "utf-8"))
