@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.4.2
 // @description  Play YT links on drrr.com with a queue
-// @author       Ms.Roboto
+// @author       rbtms
 // @match        https://drrr.com/room/*
 // @homepageURL  https://openuserjs.org/scripts/nishinishi9999/Drrr_YT_queue
 // @supportURL   https://openuserjs.org/scripts/nishinishi9999/Drrr_YT_queue/issues
