@@ -124,7 +124,6 @@ class sukebei(nyaa):
         self.parseCategory()
 
         self.page = None
-        print(self.makeURL())
 
 class piratebay:
     def __init__(self, args):
