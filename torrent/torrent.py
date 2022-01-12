@@ -4,6 +4,7 @@ import subprocess
 import urllib.request
 import json
 import lxml.html
+from datetime import datetime
 
 def r(s): return "\033[0;31m"+s+"\033[0m"
 def b(s): return "\033[0;34m"+s+"\033[0m"
@@ -35,28 +36,23 @@ class nyaa:
             "games"     : "6_2"
         }
 
-        self.q    = args["query"]
-        self.args = args
-        self.page = None
+        self.q     = args["query"]
+        self.pageN = args["page"]
 
+        self.category = args["category"] or self.DEFAULT_CATEGORY
         self.categoryCode = None
         self.parseCategory()
 
+        self.page = None
+
     def parseCategory(self):
-        category = None
-
-        if not "category" in self.args:
-            category = self.DEFAULT_CATEGORY
+        if self.category in self.CATEGORIES:
+            self.categoryCode = self.CATEGORIES[self.category]
         else:
-            category = self.args["category"]
-
-        if category in self.CATEGORIES:
-            self.categoryCode = self.CATEGORIES[category]
-        else:
-            raise ValueError("Invalid category")
+            raise ValueError("Invalid category: " + self.category + ".")
 
     def makeURL(self):
-        return self.BASE_URL + "?f=" + self.FILTER + "&c=" + self.categoryCode + "&q=" + self.q\
+        return self.BASE_URL + "?f=" + self.FILTER + "&p=" + self.pageN + "&c=" + self.categoryCode + "&q=" + self.q\
              + "&s=" + self.SORT + "&o=" + self.ORDER
 
     def getPage(self):
@@ -70,7 +66,7 @@ class nyaa:
         elems = []
 
         site = lxml.html.fromstring(self.page)
-        trs  = site.xpath("//tr")
+        trs  = site.xpath("//tbody/tr")
 
         for tr in trs:
             tds = tr.xpath("td")
@@ -78,7 +74,7 @@ class nyaa:
             if tds:
                 title    = tds[1].text_content().strip()
                 size     = tds[3].text_content().strip()
-                date     = tds[4].text_content().strip()
+                time     = tds[4].text_content().strip()
                 seeders  = tds[5].text_content().strip()
                 leechers = tds[6].text_content().strip()
 
@@ -99,7 +95,7 @@ class nyaa:
                 elif title[3] == "\n": # 3 digit comment number
                     title = title[3:].strip()
 
-                elems.append({"title": title, "torrent": torrent, "magnet": magnet, "size": size, "time": date, "seeders": seeders, "leechers": leechers})
+                elems.append({"title": title, "torrent": torrent, "magnet": magnet, "size": size, "time": time, "seeders": seeders, "leechers": leechers})
 
         return elems
 
@@ -121,11 +117,87 @@ class sukebei(nyaa):
         }
 
         self.q    = args["query"]
-        self.args = args
-        self.page = None
+        self.pageN = args["page"]
 
+        self.category = args["category"] or self.DEFAULT_CATEGORY
         self.categoryCode = None
         self.parseCategory()
+
+        self.page = None
+        print(self.makeURL())
+
+class piratebay:
+    def __init__(self, args):
+        self.BASE_URL = "https://unblocked.knaben.info/s/?search/"
+        self.ORDERBY  = "99" # Seeders i guess
+        self.HEADERS = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11'
+       }
+
+        self.pageN = args["page"]
+        self.q    = args["query"]
+        self.page = None
+
+    def makeURL(self):
+        return self.BASE_URL + self.q + "/" + self.pageN + "/" + self.ORDERBY + "/0"
+
+    def getPage(self):
+        req = urllib.request.Request(self.makeURL(), headers=self.HEADERS)
+        res = urllib.request.urlopen(req)
+        self.page = res.read().decode("utf-8")
+
+        return self
+    
+    def parseTime(self, time):
+        y, m, d = None, None, None
+
+        if time[0] == "Today":
+            y = str(datetime.now().year)
+            m = str(datetime.now().month).zfill(2)
+            d = str(datetime.now().day).zfill(2)
+        else:
+            m, d = time[0].split("-")
+
+            if ":" in time[1]:
+                y = str(datetime.now().year)
+            else:
+                y = time[1][:-1]
+
+        return y + "/" + m + "/" + d
+    
+    def parseJSON(self):
+        site = lxml.html.fromstring(self.page)
+        elems = []
+
+        # First one is the header
+        # Last one is the index
+        for tr in site.xpath("//tr")[1:-1]:
+            tds = tr.xpath("td")
+
+            if tds:
+                elemType = tds[0].text_content().strip().split()[0]
+                title  = tds[1].xpath("div")[0].text_content().strip()
+                magnet = tds[1].xpath("a/@href")[0].strip()
+
+                timeSizeUploader = tds[1].xpath("font")[0].text_content().strip()
+                time     = self.parseTime(timeSizeUploader.split()[1:3])
+                size     = " ".join(timeSizeUploader.split()[4:6])[:-1]
+                uploader = timeSizeUploader.split()[-1]
+                
+                seeders  = tds[2].text_content().strip()
+                leechers = tds[3].text_content().strip()
+
+                elems.append({
+                    "elemType"  : elemType,
+                    "title"     : title,
+                    "magnet"    : magnet,
+                    "time"      : time,
+                    "size"      : size,
+                    "uploader"  : uploader,
+                    "seeders"   : seeders,
+                    "leechers"  : leechers
+                })
+
+        return elems
 
 def loadTmp():
     if os.path.isfile(TMPFILE):
@@ -145,8 +217,8 @@ def saveTmp(res):
 
 def printHeader():
     print()
-    print(" N    " + V + " (S    |    L) " + V + "   Size    " + V +"    Date    " + V + "   Title")
-    print(H*(6) + CROSS + H*(15) + CROSS+H*(11) + CROSS + H*12 + CROSS + H*(TERMINAL_WIDTH-50) )
+    print(" N    " + V + " (S    |    L) " + V + "    Size    " + V +"    Date    " + V + "   Title")
+    print(H*6 + CROSS + H*15 + CROSS+H*12 + CROSS + H*12 + CROSS + H*(TERMINAL_WIDTH-50) )
 
 def printLine(elem, i):
     sizeN, sizeUnits = elem["size"].split()
@@ -155,7 +227,7 @@ def printLine(elem, i):
 
     print(("[" + b(str(i)) + "]").ljust(16, " ") + " " + V
          + " (" + g(elem["seeders"].ljust(4)) + " | " + g(elem["leechers"].rjust(4)) + ") " + V
-         + " " + sizeColumn + V
+         + " " + sizeColumn + " " + V
          + " " + date + " " + V
          + " " + elem["title"][:TERMINAL_WIDTH-70])
 
@@ -172,6 +244,8 @@ def getJson(args):
         return nyaa(args).getPage().parseJSON()
     elif args["site"] == "sukebei":
         return sukebei(args).getPage().parseJSON()
+    elif args["site"] == "piratebay":
+        return piratebay(args).getPage().parseJSON()
 
 def playDownload(tmp, i):
     if os.path.isfile(VLCPATH):
@@ -192,49 +266,31 @@ def downloadMagnet(tmp, i, isVlc):
     subprocess.run(args)
 
 def parseArgs():
-    args = { "isVlc": False, "n": 99999, "type": "query", "index": None, "query": None, "site": "nyaa" }
+    args = { "isVlc": False, "n": 99999, "type": "query", "index": None,
+             "query": None, "category": None, "page": "1", "site": "nyaa" }
 
     if "--vlc" in sys.argv:
         args["isVlc"] = True
         sys.argv.remove("--vlc")
 
-    if "--n" in sys.argv:
-        i = sys.argv.index("--n")
-        n = int(sys.argv[i+1]) # No length check
+    # Arguments
+    for arg in ["n", "page", "category", "site"]:
+        if "--" + arg in sys.argv:
+            i = sys.argv.index("--" + arg)
+            val = sys.argv[i+1] # No length check
 
-        args["n"] = n
-        sys.argv = sys.argv[:i] + sys.argv[i+2:]
+            args[arg] = val
+            sys.argv = sys.argv[:i] + sys.argv[i+2:]
 
-    if "--category" in sys.argv:
-        i = sys.argv.index("--category")
-        category = sys.argv[i+1] # No length check
+    # Modes with an index
+    for mode in ["download", "magnet"]:
+        if mode in sys.argv:
+            i = sys.argv.index(mode)
+            index = int(sys.argv[i+1])
 
-        args["category"] = category
-        sys.argv = sys.argv[:i] + sys.argv[i+2:]
-
-    if "--site" in sys.argv:
-        i = sys.argv.index("--site")
-        site = sys.argv[i+1] # No length check
-
-        args["site"] = site
-        sys.argv = sys.argv[:i] + sys.argv[i+2:]
-
-    # Hope it doesnt mess up with a query
-    if "download" in sys.argv:
-        i = sys.argv.index("download")
-        n = int(sys.argv[i+1]) # No length check
-
-        args["type"] = "download"
-        args["index"] = n
-        sys.argv = sys.argv[:i] + sys.argv[i+2:]
-
-    if "magnet" in sys.argv:
-        i = sys.argv.index("magnet")
-        n = int(sys.argv[i+1]) # No length check
-
-        args["type"] = "magnet"
-        args["index"] = n
-        sys.argv = sys.argv[:i] + sys.argv[i+2:]
+            args["type"]  = mode
+            args["index"] = index
+            sys.argv = sys.argv[:i] + sys.argv[i+2:]
 
     if "deleteTmp" in sys.argv:
         args["type"] = "deleteTmp"
@@ -248,7 +304,7 @@ def main():
     if len(sys.argv) == 1:
         print("""
 Usage:
-    torrent [query] [--n] [--site]    : Makes a query
+    torrent <query> [args]            : Makes a query
     torrent download <index> [--vlc]  : Downloads a query index
     torrent magnet <index>            : Prints the magnet of an index to the terminal
     torrent deleteTmp                 : Deletes temporary files
@@ -256,6 +312,7 @@ Usage:
     Arguments:
         --n    : Number of files to be shown
         --site : The site to be queried
+        --page : The number of the page
         --vlc  : Play on vlc after download
 """)
     else:
@@ -266,13 +323,9 @@ Usage:
         elif args["type"] == "download" and args["index"] == None:
             print("No download index.\n")
         elif args["type"] == "query":
-            #printTable(json.loads(open(TMPFILE, "ra").read().strip()))
-
             res = getJson(args)
-            printTable(res, args["n"])
+            printTable(res, int(args["n"]))
             saveTmp(res)
-
-            #print(nyaa(args["query"])._getJson())
         elif args["type"] == "download":
             tmp = loadTmp()
             downloadMagnet(tmp, args["index"], args["isVlc"])
@@ -288,3 +341,4 @@ Usage:
             print("Temporary files deleted.\n")
 
 main()
+
