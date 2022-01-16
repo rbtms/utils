@@ -13,37 +13,89 @@ def g(s): return "\033[0;32m"+s+"\033[0m"
 TERMINAL_WIDTH = os.get_terminal_size().columns
 TMPFILE = "/tmp/_tmp.json"
 VLCPATH = "/mnt/c/Program Files/VideoLAN/VLC/vlc.exe"
+DELUGEPATH = "/mnt/c/Program Files (x86)/Deluge/deluge.exe"
 
 V     = r("┃")
 H     = r("━")
 CROSS = r("╋")
 
-class nyaa:
+class Site:
+    def getPage(self):
+        req = urllib.request.Request(self.makeURL(), headers=self.HEADERS)
+        res = urllib.request.urlopen(req)
+        self.page = res.read().decode("utf-8")
+
+        return self
+
+    def printHeader(self):
+        print()
+        print(V.join(self.TABLE_HEADERS))
+        
+        for w in self.TABLE_WIDTHS[:-1]:
+            print(H*w + CROSS, end="")
+
+        print(H*self.TABLE_WIDTHS[-1])
+
+    def printLine(self, elem, i, site="nyaa"):
+        sizeN, sizeUnits = elem["size"].split()
+
+        nColumn     = ("[" + b(str(i)) + "]").ljust(16) + " "
+        slColumn    = " (" + g(elem["seeders"].ljust(4)) + " | " + g(elem["leechers"].rjust(4)) + ") "
+        sizeColumn  = " " + (g(sizeN) + " " + sizeUnits).ljust(21) + " "
+        dateColumn  = " " + "-".join([ g(part) for part in elem["time"].split()[0].split("-") ]) + " "
+        titleColumn = " " + elem["title"][:TERMINAL_WIDTH-70]
+
+        if repr(self) == "piratebay":
+            uploaderColumn = " " + g(elem["uploader"][:10].ljust(11))
+            print( nColumn + V + slColumn + V + sizeColumn + V + dateColumn + V + uploaderColumn + V + titleColumn)
+        else: 
+            print( nColumn + V + slColumn + V + sizeColumn + V + dateColumn + V + titleColumn)
+
+    def printTable(self, n):
+        self.printHeader()
+
+        for i, elem in enumerate(self.elems[:n]):
+            self.printLine(elem, i)
+
+        print()
+
+class nyaa(Site):
+    BASE_URL = "https://nyaa.si/"
+    FILTER   = "0"
+    SORT     = "seeders"
+    ORDER    = "desc"
+    DEFAULT_CATEGORY = "raw"
+    HEADERS = {}
+
+    CATEGORIES = {
+        "all"       : "0_0",
+        "anime"     : "1_0",
+        "raw"       : "1_4",
+        "audio"     : "2_0",
+        "manga"     : "3_1",
+        "rawmanga"  : "3_3",
+        "games"     : "6_2"
+    }
+
+    TABLE_HEADERS = [" N    ", " (S    |    L) ", "    Size    ", "    Date    ", "   Title"]
+    TABLE_WIDTHS  = [6, 15, 12, 12, TERMINAL_WIDTH-50]
+
     def __init__(self, args):
-        self.BASE_URL = "https://nyaa.si/"
-        self.FILTER   = "0"
-        self.SORT     = "seeders"
-        self.ORDER    = "desc"
-
-        self.DEFAULT_CATEGORY = "raw"
-        self.CATEGORIES = {
-            "all"       : "0_0",
-            "anime"     : "1_0",
-            "raw"       : "1_4",
-            "audio"     : "2_0",
-            "manga"     : "3_1",
-            "rawmanga"  : "3_3",
-            "games"     : "6_2"
-        }
-
-        self.q     = args["query"]
+        self.q     = self.parseQuery(args["query"])
         self.pageN = args["page"]
 
-        self.category = args["category"] or self.DEFAULT_CATEGORY
+        self.page = None
         self.categoryCode = None
+        self.category = args["category"] or self.DEFAULT_CATEGORY
         self.parseCategory()
 
-        self.page = None
+        self.elems = []
+
+    def __repr__(self):
+        return "nyaa"
+
+    def parseQuery(self, q):
+        return urllib.parse.quote("+".join(q.split()))
 
     def parseCategory(self):
         if self.category in self.CATEGORIES:
@@ -55,18 +107,9 @@ class nyaa:
         return self.BASE_URL + "?f=" + self.FILTER + "&p=" + self.pageN + "&c=" + self.categoryCode + "&q=" + self.q\
              + "&s=" + self.SORT + "&o=" + self.ORDER
 
-    def getPage(self):
-        req = urllib.request.Request(self.makeURL())
-        res = urllib.request.urlopen(req)
-        self.page = res.read().decode("utf-8")
-
-        return self
-
     def parseJSON(self):
-        elems = []
-
-        site = lxml.html.fromstring(self.page)
-        trs  = site.xpath("//tbody/tr")
+        html = lxml.html.fromstring(self.page)
+        trs  = html.xpath("//tbody/tr")
 
         for tr in trs:
             tds = tr.xpath("td")
@@ -95,57 +138,59 @@ class nyaa:
                 elif title[3] == "\n": # 3 digit comment number
                     title = title[3:].strip()
 
-                elems.append({"title": title, "torrent": torrent, "magnet": magnet, "size": size, "time": time, "seeders": seeders, "leechers": leechers})
-
-        return elems
+                self.elems.append({"title": title, "torrent": torrent, "magnet": magnet, "size": size,
+                                   "time": time, "seeders": seeders, "leechers": leechers})
 
 class sukebei(nyaa):
+    BASE_URL = "https://sukebei.nyaa.si/"
+    DEFAULT_CATEGORY = "doujinshi"
+    CATEGORIES = {
+        "all"       : "0_0",
+        "anime"     : "1_1",
+        "doujinshi" : "1_2",
+        "games"     : "1_3",
+        "manga"     : "1_4",
+        "pictures"  : "1_5"
+    }
+
     def __init__(self, args):
-        self.BASE_URL = "https://sukebei.nyaa.si/"
-        self.FILTER   = "0"
-        self.SORT     = "seeders"
-        self.ORDER    = "desc"
-
-        self.DEFAULT_CATEGORY = "doujinshi"
-        self.CATEGORIES = {
-            "all"       : "0_0",
-            "anime"     : "1_1",
-            "doujinshi" : "1_2",
-            "games"     : "1_3",
-            "manga"     : "1_4",
-            "pictures"  : "1_5"
-        }
-
-        self.q    = args["query"]
+        self.q     = self.parseQuery(args["query"])
         self.pageN = args["page"]
 
-        self.category = args["category"] or self.DEFAULT_CATEGORY
+        self.page = None
         self.categoryCode = None
+        self.category = args["category"] or self.DEFAULT_CATEGORY
         self.parseCategory()
 
-        self.page = None
+        self.elems = []
 
-class piratebay:
+    def __repr__(self):
+        return "sukebei"
+
+class piratebay(Site):
+    BASE_URL = "https://unblocked.knaben.info/s/?search/"
+    ORDERBY  = "99" # Seeders i guess
+    HEADERS = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11'}
+
+    TABLE_HEADERS = [" N    ", " (S    |    L) ", "    Size    ", "    Date    ", "  Uploader  ", "   Title"]
+    TABLE_WIDTHS  = [6, 15, 12, 12, 12, TERMINAL_WIDTH-70]
+
     def __init__(self, args):
-        self.BASE_URL = "https://unblocked.knaben.info/s/?search/"
-        self.ORDERBY  = "99" # Seeders i guess
-        self.HEADERS = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11'
-       }
-
         self.pageN = args["page"]
-        self.q    = args["query"]
+        self.q = self.parseQuery(args["query"])
         self.page = None
+
+        self.elems = []
+
+    def __repr__(self):
+        return "piratebay"
+
+    def parseQuery(self, q):
+        return urllib.parse.quote(q)
 
     def makeURL(self):
         return self.BASE_URL + self.q + "/" + self.pageN + "/" + self.ORDERBY + "/0"
 
-    def getPage(self):
-        req = urllib.request.Request(self.makeURL(), headers=self.HEADERS)
-        res = urllib.request.urlopen(req)
-        self.page = res.read().decode("utf-8")
-
-        return self
-    
     def parseTime(self, time):
         y, m, d = None, None, None
 
@@ -165,7 +210,6 @@ class piratebay:
     
     def parseJSON(self):
         site = lxml.html.fromstring(self.page)
-        elems = []
 
         # First one is the header
         # Last one is the index
@@ -185,7 +229,7 @@ class piratebay:
                 seeders  = tds[2].text_content().strip()
                 leechers = tds[3].text_content().strip()
 
-                elems.append({
+                self.elems.append({
                     "elemType"  : elemType,
                     "title"     : title,
                     "magnet"    : magnet,
@@ -195,8 +239,6 @@ class piratebay:
                     "seeders"   : seeders,
                     "leechers"  : leechers
                 })
-
-        return elems
 
 def loadTmp():
     if os.path.isfile(TMPFILE):
@@ -214,38 +256,6 @@ def saveTmp(res):
     json.dump(res, tmpFile)
     tmpFile.close()
 
-def printHeader():
-    print()
-    print(" N    " + V + " (S    |    L) " + V + "    Size    " + V +"    Date    " + V + "   Title")
-    print(H*6 + CROSS + H*15 + CROSS+H*12 + CROSS + H*12 + CROSS + H*(TERMINAL_WIDTH-50) )
-
-def printLine(elem, i):
-    sizeN, sizeUnits = elem["size"].split()
-    sizeColumn = (g(sizeN) + " " + sizeUnits).ljust(21, " ")
-    date = "-".join([ g(part) for part in elem["time"].split()[0].split("-") ])
-
-    print(("[" + b(str(i)) + "]").ljust(16, " ") + " " + V
-         + " (" + g(elem["seeders"].ljust(4)) + " | " + g(elem["leechers"].rjust(4)) + ") " + V
-         + " " + sizeColumn + " " + V
-         + " " + date + " " + V
-         + " " + elem["title"][:TERMINAL_WIDTH-70])
-
-def printTable(elems, n):
-    printHeader()
-
-    for i, elem in enumerate(elems[:n]):
-        printLine(elem, i)
-
-    print()
-
-def getJson(args):
-    if args["site"] == "nyaa":
-        return nyaa(args).getPage().parseJSON()
-    elif args["site"] == "sukebei":
-        return sukebei(args).getPage().parseJSON()
-    elif args["site"] == "piratebay":
-        return piratebay(args).getPage().parseJSON()
-
 def playDownload(tmp, i):
     if os.path.isfile(VLCPATH):
         subprocess.run([VLCPATH, tmp[i]["title"]])
@@ -253,16 +263,15 @@ def playDownload(tmp, i):
         print("There is no VLC binary on that path.")
         sys.exit()
 
+def addDeluge(tmp, i):
+    magnet = tmp[i]["magnet"]
+    os.system("\"{0}\" \"{1}\" &".format(DELUGEPATH, magnet))
+
 def printMagnet(tmp, i):
     print(tmp[i]["magnet"])
 
-def downloadMagnet(tmp, i, isVlc):
-    magnet = tmp[i]["magnet"]
-
-    args = ["webtorrent", magnet]
-    #if isVlc: args.append("--vlc")
-
-    subprocess.run(args)
+def downloadMagnet(tmp, i):
+    subprocess.run(["webtorrent", tmp[i]["magnet"]])
 
 def parseArgs():
     args = { "isVlc": False, "n": 99999, "type": "query", "index": None,
@@ -282,7 +291,7 @@ def parseArgs():
             sys.argv = sys.argv[:i] + sys.argv[i+2:]
 
     # Modes with an index
-    for mode in ["download", "magnet"]:
+    for mode in ["download", "magnet", "deluge"]:
         if mode in sys.argv:
             i = sys.argv.index(mode)
             index = int(sys.argv[i+1])
@@ -295,7 +304,8 @@ def parseArgs():
         args["type"] = "deleteTmp"
         sys.argv.remove("deleteTmp")
 
-    args["query"] = urllib.parse.quote("+".join(sys.argv[1:]))
+    # Parse query
+    args["query"] = " ".join(sys.argv[1:])
 
     return args
 
@@ -305,6 +315,7 @@ def main():
 Usage:
     torrent <query> [args]            : Makes a query
     torrent download <index> [--vlc]  : Downloads a query index
+    torrent deluge <index>            : Add the index to deluge's query
     torrent magnet <index>            : Prints the magnet of an index to the terminal
     torrent deleteTmp                 : Deletes temporary files
 
@@ -317,27 +328,32 @@ Usage:
     else:
         args = parseArgs()
 
+        site = None
+        if   args["site"] == "nyaa"     : site = nyaa(args)
+        elif args["site"] == "sukebei"  : site = sukebei(args)
+        elif args["site"] == "piratebay": site = piratebay(args)
+
         if args["type"] == "query" and args["query"] == "":
             print("Empty query.\n")
         elif args["type"] == "download" and args["index"] == None:
             print("No download index.\n")
         elif args["type"] == "query":
-            res = getJson(args)
-            printTable(res, int(args["n"]))
-            saveTmp(res)
+            site.getPage().parseJSON()
+            site.printTable(int(args["n"]))
+
+            saveTmp(site.elems)
         elif args["type"] == "download":
             tmp = loadTmp()
-            downloadMagnet(tmp, args["index"], args["isVlc"])
+            downloadMagnet(tmp, args["index"])
 
-            # Because --vlc fails
             if args["isVlc"]:
                 playDownload(tmp, args["index"])
         elif args["type"] == "magnet":
-            tmp = loadTmp()
-            printMagnet(tmp, args["index"])
+            printMagnet(loadTmp(), args["index"])
+        elif args["type"] == "deluge":
+            addDeluge(loadTmp(), args["index"])
         elif args["type"] == "deleteTmp":
             os.remove(TMPFILE)
             print("Temporary files deleted.\n")
 
 main()
-
