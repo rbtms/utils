@@ -67,7 +67,7 @@ def deleteAll(imap):
         print("Couldnt fetch mails.")
 
 def main():
-    imap = imaplib.IMAP4_SSL(host=HOST, port=993)
+    imap = imaplib.IMAP4_SSL(host=HOST, port=PORT)
     imap.login(USER, PWD)
 
     # Select INBOX
