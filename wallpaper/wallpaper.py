@@ -1,19 +1,19 @@
 #
-# Script to set a random wallpaper on windows from 4chan
+# Script to set a random wallpaper on windows (WSL) from 4chan
 # Usage: wallpaper.py [board]
-#
-# Requires: requests (pip)
 #
 
 import os
 import sys
+import urllib.request
+import json
 import time
-import requests
 import ctypes
 from random import randint
 
 MIN_W = 1900
 MIN_H = 1080
+TMP_IMG_PATH = "/tmp/tmp_wallpaper.png"
 
 class Board:
     def __init__(self, name):
@@ -28,22 +28,22 @@ class Board:
         arr.remove(elem)
 
         return elem
+    
+    def getURL(self, url):
+        req = urllib.request.Request(url)
+        res = urllib.request.urlopen(req)
+        return res
 
     def getPages(self):
-        self.pages = requests.get(
-            "https://a.4cdn.org/" + self.name + "/threads.json"
-        ).json()
+        res = self.getURL("https://a.4cdn.org/" + self.name + "/threads.json")
+        self.pages = json.loads(res.read().decode("utf-8"))
 
     def getPosts(self, threadNo):
-        self.posts = requests.get(
-            "https://a.4cdn.org/" + self.name
-            + "/thread/" + str(threadNo) + ".json"
-        ).json()["posts"]
+        res = self.getURL("https://a.4cdn.org/" + self.name + "/thread/" + str(threadNo) + ".json")
+        self.posts = json.loads(res.read().decode("utf-8"))["posts"]
 
     def getImg(self, imageId, ext):
-        return requests.get(
-            "https://i.4cdn.org/" + self.name + "/" + str(imageId) + ext
-        )
+        return self.getURL("https://i.4cdn.org/" + self.name + "/" + str(imageId) + ext)
 
     def takeRandomPage(self):
         if not self.pages:
@@ -67,28 +67,32 @@ class Board:
             if "w" in post and "h" in post and post["w"] >= MIN_W and post["h"] >= MIN_H:
                 res = self.getImg(post["tim"], post["ext"])
 
-                if res.status_code == 200:
-                    return res.content
+                if res.msg == "OK":
+                    return res.read()
 
 def setWallpaper(path):
     path = os.path.abspath(path)
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 0)
+    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
+
+def deleteTmp(tmp):
+    try:
+        os.remove(tmp)
+    except:
+        time.sleep(0.1)
+        deleteTmp(tmp)
 
 def main():
     boardName = sys.argv[1] if len(sys.argv) > 1 else "wg"
-    tmp = "tmp.png"
 
-    board = Board(boardName)
-    img = board.randomImg()
+    img = Board(boardName).randomImg()
 
-    f = open(tmp, "wb")
+    f = open(TMP_IMG_PATH, "wb")
     f.write(img)
     f.close()
 
-    setWallpaper(tmp)
-    
+    setWallpaper(TMP_IMG_PATH)
+
     time.sleep(0.2)
-    os.remove(tmp)
+    deleteTmp(TMP_IMG_PATH)
 
 main()
-
