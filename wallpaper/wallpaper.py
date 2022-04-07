@@ -1,5 +1,5 @@
 #
-# Script to set a random wallpaper on windows (WSL) from 4chan
+# Script to set a random wallpaper on windows (WSL) from multiple pages
 # Usage: wallpaper.py [board]
 #
 
@@ -70,6 +70,26 @@ class Board:
                 if res.msg == "OK":
                     return res.read()
 
+class Unsplash(Board):
+    def __init__(self, q):
+        endpoint    = "https://api.unsplash.com/search/photos/"
+        client_id   = "SEfftQdo-yjLo2DyETyvLBY-G6TzDMkRSyb7tSeeZZg"
+        orientation = "landscape"
+        query       = "+".join(q.split())
+
+        self.url = endpoint + "?client_id=" + client_id + "&query=" + query + "&orientation" + orientation
+
+    def randomImg(self):
+        j = json.loads( self.getURL(self.url).read().decode("utf-8") )
+        imgURL = self.takeRandom(j["results"])["urls"]["raw"]
+
+        res = self.getURL(imgURL)
+
+        if res.msg == "OK":
+            return res.read()
+        else:
+            raise ValueError("The picture could not be retrieved.")
+
 def setWallpaper(path):
     path = os.path.abspath(path)
     ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
@@ -83,8 +103,16 @@ def deleteTmp(tmp):
 
 def main():
     boardName = sys.argv[1] if len(sys.argv) > 1 else "wg"
+    img = None
 
-    img = Board(boardName).randomImg()
+    if boardName == "unsplash":
+        if len(sys.argv) != 3:
+            raise ValueError("Incorrect number of arguments.")
+        else:
+            q   = sys.argv[2]
+            img = Unsplash(q).randomImg()
+    else:
+        img = Board(boardName).randomImg()
 
     f = open(TMP_IMG_PATH, "wb")
     f.write(img)
