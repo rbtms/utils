@@ -1,6 +1,6 @@
 #
-# Script to set a random wallpaper on windows (WSL) from multiple pages
-# Usage: wallpaper.py [board]
+# Script to set a random wallpaper on windows (WSL) from 4chan
+# Usage: wallpaper.py --help
 #
 
 import os
@@ -8,12 +8,16 @@ import sys
 import urllib.request
 import json
 import time
-import ctypes
+#import ctypes
 from random import randint
+from pathlib import Path
 
 MIN_W = 1900
 MIN_H = 1080
-TMP_IMG_PATH = "/tmp/tmp_wallpaper.png"
+
+# Random number because otherwise KDE wont change the picture if it has the same name
+WALLPAPERS_DIR = str(Path.home()) + '/Pictures/wallpapers/'
+TMP_IMG_PATH = WALLPAPERS_DIR + 'wallpaper' + str(randint(1, 10000)) + '.png'
 
 class Board:
     def __init__(self, name):
@@ -28,7 +32,7 @@ class Board:
         arr.remove(elem)
 
         return elem
-    
+
     def getURL(self, url):
         req = urllib.request.Request(url)
         res = urllib.request.urlopen(req)
@@ -77,7 +81,8 @@ class Unsplash(Board):
         orientation = "landscape"
         query       = "+".join(q.split())
 
-        self.url = endpoint + "?client_id=" + client_id + "&query=" + query + "&orientation" + orientation
+        self.url = endpoint + "?client_id=" + client_id + "&query=" + query\
+                 + "&orientation" + orientation
 
     def randomImg(self):
         j = json.loads( self.getURL(self.url).read().decode("utf-8") )
@@ -92,7 +97,43 @@ class Unsplash(Board):
 
 def setWallpaper(path):
     path = os.path.abspath(path)
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
+
+    # Windows
+    #ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
+
+    # Linux
+    #cmd='dbus-send --session --dest=org.kde.plasmashell --type=method_call /PlasmaShell org.kde.PlasmaShell.evaluateScript \'string:'\
+    #cmd = 'qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript \'\n'\
+    #'var allDesktops = desktops();\n'\
+    #'for (i=0;i<allDesktops.length;i++) {{\n' \
+    #    'd = allDesktops[i];\n'\
+    #    'd.wallpaperPlugin = "org.kde.image";\n'\
+    #    'd.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");\n'\
+    #    'd.writeConfig("Image", "file://{path}"); }}\n'\
+    #    '\''.format(path=path)
+
+    #cmd='qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript \'var allDesktops = desktops();print (allDesktops);for (i=0;i<allDesktops.length;i++) {{d = allDesktops[i];d.wallpaperPlugin = "org.kde.image";d.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");d.writeConfig("Image", "file://{path}")}}\''.format(path=path)
+
+    # KDE
+    # It doesnt refresh if the filename is the same
+    script = "for (var key in desktops()) {{\n"\
+        "var d = desktops()[key];\n"\
+        "d.wallpaperPlugin = 'org.kde.image';\n"\
+        "d.currentConfigGroup = ['Wallpaper', 'org.kde.image', 'Generalasdfasdf'];\n"\
+        "d.writeConfig('Image', 'file://{path}');\n"\
+        "}}".format(path=path)
+
+    cmd = f'qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "{script}"'\
+
+    os.system(cmd)
+
+    print('Wallpaper set')
+
+#def removeWallpaper():
+#    ctypes.windll.user32.SystemParametersInfoW(20, 0, None, 4)
+def removeWallpapers():
+    os.system('rm ' + WALLPAPERS_DIR + '* >/dev/null 2>&1')
+    print('Wallpapers removed')
 
 def deleteTmp(tmp):
     try:
@@ -102,25 +143,39 @@ def deleteTmp(tmp):
         deleteTmp(tmp)
 
 def main():
-    boardName = sys.argv[1] if len(sys.argv) > 1 else "wg"
-    img = None
 
-    if boardName == "unsplash":
-        if len(sys.argv) != 3:
-            raise ValueError("Incorrect number of arguments.")
-        else:
-            q   = sys.argv[2]
-            img = Unsplash(q).randomImg()
+    if len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
+        print("""
+Usage:
+    wallpaper [board]
+        Set a wallpaper from a 4chan board
+    wallpaper unsplash [query]
+        Set a wallpaper from an unsplash query
+    wallpaper remove
+        Remove all wallpapers in the wallpaper folder
+""")
     else:
-        img = Board(boardName).randomImg()
+        # Delete previous wallpapers
+        removeWallpapers()
 
-    f = open(TMP_IMG_PATH, "wb")
-    f.write(img)
-    f.close()
+        if sys.argv[1] != "remove":
+            boardName = sys.argv[1] if len(sys.argv) > 1 else "wg"
 
-    setWallpaper(TMP_IMG_PATH)
+            img = None
 
-    time.sleep(0.2)
-    deleteTmp(TMP_IMG_PATH)
+            if boardName == "unsplash":
+                if len(sys.argv) != 3:
+                    raise ValueError("Incorrect number of arguments.")
+
+                q   = sys.argv[2]
+                img = Unsplash(q).randomImg()
+            else:
+                img = Board(boardName).randomImg()
+
+            f = open(TMP_IMG_PATH, "wb")
+            f.write(img)
+            f.close()
+
+            setWallpaper(TMP_IMG_PATH)
 
 main()
