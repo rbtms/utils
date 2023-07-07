@@ -67,6 +67,7 @@ class Protonmail:
 
             # Wait until it moves them (not sure if needed)
             #time.sleep(1)
+            print('Mails deleted')
 
             self.session.api_request(
                 "/mail/v4/conversations/delete",
@@ -87,8 +88,7 @@ class Protonmail:
             for mail in mails:
                 print( "[{date}] {name} - {subject}".format(
                     date = mail["date"],
-                    name = mail["sender_name"],
-                    #mail = mail["sender_mail"],
+                    name = mail["sender_mail"] if mail['sender_name'] == '' else mail['sender_name'],
                     subject = mail["subject"]
                 ))
 
@@ -106,3 +106,4 @@ def main():
         pm.printMails()
 
 main()
+
