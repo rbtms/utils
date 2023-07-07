@@ -70,7 +70,8 @@ def main():
     url = uploadFileToSite(path, site) if uploadType == "FILE" else uploadUrl(path)
 
     # Copy to clipboard
-    subprocess.run("clip.exe", input=bytes(url, "utf-8"))
+    #subprocess.run("clip.exe", input=bytes(url, "utf-8"))
+    subprocess.run('echo -n ' + url + '| xclip -selection clipboard', shell=True)
     print("[" + url + "] pasted to clipboard.")
 
     # Remove temporary file
