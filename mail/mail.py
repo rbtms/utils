@@ -1,7 +1,3 @@
-#
-# Small IMAP mail client
-#
-
 import sys
 import imaplib
 import email
@@ -30,8 +26,9 @@ def parseMail(mail):
 
 def readInbox(imap):
     mails = []
-    
+
     resMails = imap.search(None, "ALL")
+    replacements = { "=C3=A1": "á", "=C3=A9": "é", "=C3=AD": "í", "=C3=B3": "ó", "=C3=BA": "ú", "=\n": "" }
 
     if resMails[0] == "OK":
         msgsN = resMails[1][0].decode("utf-8").split()
@@ -46,8 +43,17 @@ def readInbox(imap):
 
         for n in range(len(mails)):
             m = parseMail( mails[len(mails)-int(n)-1] )
-            print(f'{[n+1]} {m["subject"]} ({m["from"]})')
-            print(f'\n{m["payload"]}\n')
+            payload = m["payload"]
+
+            # Remove "Content-*" headers
+            payload = "\n".join([ l for l in payload.split("\n") if not l.startswith("Content-") ])
+
+            # Replace corrupted unicode
+            for key in replacements:
+                payload = payload.replace(key, replacements[key])
+
+            #print(f'{[n+1]} {m["subject"]} ({m["from"]})')
+            print(f'{[n+1]}{payload}\n')
     else:
         print("Couldnt fetch mails.")
 
@@ -94,5 +100,5 @@ def main():
         imap.logout()
     else:
         print("Couldnt connnect.")
-    
+
 main()
