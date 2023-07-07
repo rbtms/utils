@@ -1,0 +1,80 @@
+import sys
+import os
+import subprocess
+import json
+
+PATH_SCRIPT_CATBOX = '/usr/bin/scripts/catbox.py'
+TMP_OUTPUT_FILE = '/tmp/yt_output_file'
+TMP_OUTPUT_OPUS = '/tmp/yt_output_file*'
+
+def parse_args():
+    args = { 'yt_url': None, 'verbose': False, 'out_json': False }
+
+    if '--json' in sys.argv:
+        args['out_json'] = True
+        sys.argv.remove('--json')
+    if '--verbose' in sys.argv:
+        args['verbose'] = True
+        sys.argv.remove('--verbose')
+
+    if len(sys.argv) >= 2:
+        args['yt_url'] = sys.argv[1]
+    else:
+        raise ValueError("""
+No URL. Usage: ytcatbox [--verbose|--json] URL
+    --verbose: Show verbose output
+    --json: Copy json output to clipboard
+""")
+
+    return args
+
+def get_song_title(yt_url):
+    return json.loads(
+        subprocess.check_output(['yt-dlp', '-j', yt_url]).decode('utf-8')
+    )['title']
+
+def main():
+    args = parse_args()
+
+    cmd_dl = 'yt-dlp -x ' + args['yt_url'] + ' -o ' + TMP_OUTPUT_FILE
+    cmd_ul = 'python3 ' + PATH_SCRIPT_CATBOX + ' ' + TMP_OUTPUT_OPUS
+
+    # If not verbose, silence output
+    if not args['verbose']:
+        cmd_dl += ' >/dev/null'
+        cmd_ul += ' >/dev/null'
+
+    # Download audio
+    print('Downloading audio file...', end=' '); sys.stdout.flush()
+    os.system(cmd_dl)
+    print('done.')
+
+    # Upload file
+    print('Uploading audio file...', end=' '); sys.stdout.flush()
+    os.system(cmd_ul)
+    print('done. URL copied to clipboard.')
+
+    # Remove temporary file
+    print('Removing tmp file...', end=' '); sys.stdout.flush()
+    os.system('rm ' + TMP_OUTPUT_OPUS)
+    print('done.')
+
+    upload_url = subprocess.check_output('xclip -o -selection clipboard', shell=True).decode('utf-8')
+    title = get_song_title(args['yt_url'])
+
+    # JSON to be pasted to the browser
+    if args['out_json']:
+        title = title.replace('(', '\(').replace(')', '\)') # Escape parentheses
+
+        # Double // to avoid echo from removing the ""
+        json_print = '{ \\"url\\": \\"' + upload_url + '\\", \\"title\\": \\"' + title + '\\"}'
+        os.system('echo -n ' + json_print + '| xclip -selection clipboard')
+
+        print('\nDone. Copied JSON to clipboard. [', json_print, ']')
+    else:
+        # Print results
+        print()
+        print('Title :', title)
+        print('URL   :', upload_url)
+
+main()
