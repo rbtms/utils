@@ -76,8 +76,8 @@ class Board:
 
 class Unsplash(Board):
     def __init__(self, q):
-        endpoint    = "https://api.unsplash.com/search/photos/"
-        client_id   = "SEfftQdo-yjLo2DyETyvLBY-G6TzDMkRSyb7tSeeZZg"
+        endpoint    = "https://api.unsplash.com/photos/random/"
+        client_id   = "CLIENT_ID"
         orientation = "landscape"
         query       = "+".join(q.split())
 
@@ -86,7 +86,7 @@ class Unsplash(Board):
 
     def randomImg(self):
         j = json.loads( self.getURL(self.url).read().decode("utf-8") )
-        imgURL = self.takeRandom(j["results"])["urls"]["raw"]
+        imgURL = j["urls"]["raw"]
 
         res = self.getURL(imgURL)
 
@@ -95,26 +95,16 @@ class Unsplash(Board):
         else:
             raise ValueError("The picture could not be retrieved.")
 
-def setWallpaper(path):
-    path = os.path.abspath(path)
-
-    # Windows
+#def setWallpaperWindows(path):
     #ctypes.windll.user32.SystemParametersInfoW(20, 0, path, 3)
 
-    # Linux
-    #cmd='dbus-send --session --dest=org.kde.plasmashell --type=method_call /PlasmaShell org.kde.PlasmaShell.evaluateScript \'string:'\
-    #cmd = 'qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript \'\n'\
-    #'var allDesktops = desktops();\n'\
-    #'for (i=0;i<allDesktops.length;i++) {{\n' \
-    #    'd = allDesktops[i];\n'\
-    #    'd.wallpaperPlugin = "org.kde.image";\n'\
-    #    'd.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");\n'\
-    #    'd.writeConfig("Image", "file://{path}"); }}\n'\
-    #    '\''.format(path=path)
+#def removeWallpaperWindows():
+#    ctypes.windll.user32.SystemParametersInfoW(20, 0, None, 4)
 
-    #cmd='qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript \'var allDesktops = desktops();print (allDesktops);for (i=0;i<allDesktops.length;i++) {{d = allDesktops[i];d.wallpaperPlugin = "org.kde.image";d.currentConfigGroup = Array("Wallpaper", "org.kde.image", "General");d.writeConfig("Image", "file://{path}")}}\''.format(path=path)
+def setWallpaperLinux(path):
+    path = os.path.abspath(path)
 
-    # KDE
+def setWallpaperKDE(path):
     # It doesnt refresh if the filename is the same
     script = "for (var key in desktops()) {{\n"\
         "var d = desktops()[key];\n"\
@@ -127,10 +117,12 @@ def setWallpaper(path):
 
     os.system(cmd)
 
+def setWallpaper(path):
+    path = os.path.abspath(path)
+
+    setWallpaperKDE(path)
     print('Wallpaper set')
 
-#def removeWallpaper():
-#    ctypes.windll.user32.SystemParametersInfoW(20, 0, None, 4)
 def removeWallpapers():
     os.system('rm ' + WALLPAPERS_DIR + '* >/dev/null 2>&1')
     print('Wallpapers removed')
@@ -143,7 +135,6 @@ def deleteTmp(tmp):
         deleteTmp(tmp)
 
 def main():
-
     if len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
         print("""
 Usage:
