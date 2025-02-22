@@ -1,10 +1,18 @@
+import os
 import sys
-#import time
+import pathlib
+import json
 from datetime import datetime
 from proton.api import Session
 
-USERNAME = "username"
-PASSWORD = "password"
+# Read credentials data
+credentials_file = 'credentials.json'
+credentials_path = os.path.join(pathlib.Path(__file__).parent.resolve(), credentials_file)
+credentials = json.loads(open(credentials_path, "r", encoding="utf8").read())
+
+USERNAME = credentials["user"]
+PASSWORD = credentials["pwd"]
+
 
 __allow_alternative_routing__= True
 
@@ -67,7 +75,7 @@ class Protonmail:
 
             # Wait until it moves them (not sure if needed)
             #time.sleep(1)
-            print('Mails deleted')
+            print("{} mails deleted.\n".format(len(mails)))
 
             self.session.api_request(
                 "/mail/v4/conversations/delete",
@@ -94,16 +102,27 @@ class Protonmail:
 
         print()
 
+def ask_for_confirmation(question):
+    """Ask a prompt to the user"""
+    response = input(f'{question} (y/n) ')
+
+    if response in ('n', 'N'):
+        return False
+    elif response in ('y', 'Y'):
+        return True
+    else:
+        return ask_for_confirmation(question)
+
 def main():
     pm = Protonmail()
 
     if len(sys.argv) == 2:
         if sys.argv[1] == "delete":
-            pm.deleteMails()
+            if ask_for_confirmation("Do you want to delete all mails?"):
+                pm.deleteMails()
         else:
             print("Incorrect argument. [delete]")
     else:
         pm.printMails()
 
 main()
-
