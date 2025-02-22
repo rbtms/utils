@@ -1,11 +1,24 @@
+import os
 import sys
 import imaplib
 import email
+import json
+import pathlib
 
-HOST = "HOST"
-PORT = 0
-USER = "USER"
-PWD  = "PWD"
+# Read config and credentials data
+config_file = 'config.json'
+credentials_file = 'credentials.json'
+config_path = os.path.join(pathlib.Path(__file__).parent.resolve(), config_file)
+credentials_path = os.path.join(pathlib.Path(__file__).parent.resolve(), credentials_file)
+
+config = json.loads(open(config_path, "r", encoding="utf8").read())
+credentials = json.loads(open(credentials_path, "r", encoding="utf8").read())
+
+HOST = config['host']
+PORT = config['port']
+USER = credentials['user']
+PWD  = credentials['pwd']
+
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
@@ -58,19 +71,31 @@ def readInbox(imap):
         print("Couldnt fetch mails.")
 
 def deleteMail(imap, n):
-    print(n)
+    print(f"Deleted mail {n}")
     imap.store(n, "+FLAGS", "(\\Deleted)")
 
-def deleteAll(imap):
-    resMails = imap.search(None, "ALL")
+def ask_for_confirmation(question):
+    """Ask a prompt to the user"""
+    response = input(f'{question} (y/n) ')
 
-    if resMails[0] == "OK":
-        msgsN = resMails[1][0].decode("utf-8").split()
-
-        for n in msgsN:
-            deleteMail(imap, n)
+    if response in ('n', 'N'):
+        return False
+    elif response in ('y', 'Y'):
+        return True
     else:
-        print("Couldnt fetch mails.")
+        return ask_for_confirmation(question)
+
+def deleteAll(imap):
+    if ask_for_confirmation("Do you want to delete all mails?"):
+        resMails = imap.search(None, "ALL")
+
+        if resMails[0] == "OK":
+            msgsN = resMails[1][0].decode("utf-8").split()
+
+            for n in msgsN:
+                deleteMail(imap, n)
+        else:
+            print("Couldnt fetch mails.")
 
 def main():
     imap = imaplib.IMAP4_SSL(host=HOST, port=PORT)
